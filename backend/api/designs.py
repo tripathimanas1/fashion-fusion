@@ -19,6 +19,17 @@ router = APIRouter()
 
 # ── Pydantic schemas (must be defined before use) ────────────────────────────
 
+class StyleBlend(BaseModel):
+    style: str  # "modern", "traditional", "fusion", "minimalist", "bohemian", "cyberpunk", "vintage"
+    weight: float = 50.0  # 0-100 percentage
+
+class MultiStyleRequest(BaseModel):
+    prompt: str
+    styles: List[StyleBlend]
+    num_outputs: int = 2
+    user_id: int
+    generation_type: str = "multi-style"
+
 class SaveDesignRequest(BaseModel):
     design_id: int
     user_id: int
@@ -27,6 +38,31 @@ class SaveDesignRequest(BaseModel):
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _create_style_fusion_prompt(prompt: str, styles: List[StyleBlend]) -> str:
+    """Create enhanced prompt with style fusion"""
+    style_descriptions = []
+    
+    for style in styles:
+        style_mapping = {
+            "modern": "contemporary minimalist design with clean lines and modern aesthetics",
+            "traditional": "classic ethnic design with traditional craftsmanship and cultural elements",
+            "fusion": "innovative blend of modern and traditional elements",
+            "minimalist": "simple, clean design with minimal elements and neutral colors",
+            "bohemian": "free-spirited design with flowing fabrics and artistic details",
+            "cyberpunk": "futuristic design with tech-inspired elements and bold colors",
+            "vintage": "retro-inspired design with classic vintage aesthetics"
+        }
+        
+        style_desc = style_mapping.get(style.style.lower(), style.style)
+        weight_percentage = style.weight / 100.0
+        style_descriptions.append(f"{weight_percentage:.0%} {style_desc}")
+    
+    if style_descriptions:
+        style_fusion = f"Create a design that is {' + '.join(style_descriptions)}. "
+        return f"{style_fusion}The main concept is: {prompt}"
+    else:
+        return prompt
 
 def _design_to_dict(d: Design) -> dict:
     return {
@@ -106,6 +142,61 @@ def _extract_palette_and_style(image_urls: list):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 # NOTE: specific routes MUST come before /{design_id} catch-all
+
+@router.post("/generate-multi-style")
+async def generate_multi_style_design(request: MultiStyleRequest, db: Session = Depends(get_db)):
+    """Generate designs with multiple style fusion capabilities"""
+    try:
+        num_outputs = max(1, min(4, request.num_outputs))
+        
+        # Create enhanced prompt with style fusion
+        enhanced_prompt = _create_style_fusion_prompt(request.prompt, request.styles)
+        
+        # Generate designs using existing service
+        image_urls = await replicate_service.generate_design_from_prompt(
+            enhanced_prompt, 
+            num_outputs=num_outputs
+        )
+        
+        # Download and save images
+        saved_urls = download_and_save_images(image_urls)
+        
+        # Extract palette and style recommendations
+        color_palette, fabric_recommendations, style_recommendations = _extract_palette_and_style(saved_urls)
+        
+        # Create design record
+        design = Design(
+            title=f"Multi-Style: {request.prompt[:50]}...",
+            prompt=enhanced_prompt,
+            generation_type="multi-style",
+            image_urls=saved_urls,
+            color_palette=color_palette,
+            fabric_recommendations=fabric_recommendations,
+            style_recommendations=style_recommendations,
+            user_id=request.user_id,
+            is_public=True,  # Make designs visible in marketplace
+            created_at=datetime.utcnow()
+        )
+        
+        db.add(design)
+        db.commit()
+        db.refresh(design)
+        
+        return {
+            "success": True,
+            "design_id": design.id,
+            "image_urls": saved_urls,
+            "color_palette": color_palette,
+            "style_recommendations": style_recommendations,
+            "fabric_recommendations": fabric_recommendations,
+            "enhanced_prompt": enhanced_prompt,
+            "style_fusion": [{"style": s.style, "weight": s.weight} for s in request.styles]
+        }
+        
+    except Exception as e:
+        print(f"Multi-style generation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Multi-style generation failed: {str(e)}")
+
 
 @router.post("/generate")
 async def generate_design(

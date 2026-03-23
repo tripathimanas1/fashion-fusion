@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, MapPin, Star, Phone, Mail, Heart, ShoppingBag, X, Package, ChevronDown, ChevronUp, Ruler, Shirt, Eye } from 'lucide-react'
+import { Search, MapPin, Star, Phone, Mail, Heart, ShoppingBag, X, Package, ChevronDown, ChevronUp, Ruler, Shirt, Eye, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { marketplaceApi, Tailor } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -112,6 +112,17 @@ export default function Marketplace() {
   const [quotationForm, setQuotationForm] = useState<{ design: DesignItem; imageUrl: string } | null>(null)
 
   useEffect(() => { fetchDesigns() }, [])
+  
+  // Auto-refresh when page becomes visible (user navigates back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchDesigns()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
 
   const saveDesign = async (designId: number) => {
     if (!user) { toast.error('Sign in to save'); return }
@@ -136,7 +147,14 @@ export default function Marketplace() {
       })
       if (res.ok) {
         const data = await res.json()
-        setDesigns(Array.isArray(data) ? data : [])
+        const newDesigns = Array.isArray(data) ? data : []
+        const previousCount = designs.length
+        setDesigns(newDesigns)
+        
+        // Show notification if new designs were added
+        if (previousCount > 0 && newDesigns.length > previousCount) {
+          toast.success(`${newDesigns.length - previousCount} new design${newDesigns.length - previousCount > 1 ? 's' : ''} added!`)
+        }
       }
     } catch { } finally { setLoading(false) }
   }
@@ -199,11 +217,20 @@ export default function Marketplace() {
             <h2 className="text-xl font-display font-bold text-gray-900">
               Results <span className="text-sm font-normal text-gray-400 ml-2">({filteredDesigns.length} items)</span>
             </h2>
-            <div className="relative sm:ml-auto w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input type="text" placeholder="Search designs…" value={searchDesign}
-                onChange={e => setSearchDesign(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fashion-rose" />
+            <div className="flex gap-3 sm:ml-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <input type="text" placeholder="Search designs…" value={searchDesign}
+                  onChange={e => setSearchDesign(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fashion-rose" />
+              </div>
+              <button
+                onClick={() => fetchDesigns()}
+                className="px-4 py-2 bg-gradient-sunset text-white rounded-xl text-sm font-medium shadow-fashion hover:shadow-fashion-lg transition-all flex items-center gap-2"
+              >
+                <RefreshCw size={14} />
+                Refresh
+              </button>
             </div>
           </div>
 

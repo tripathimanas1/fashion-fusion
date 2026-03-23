@@ -1,10 +1,16 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, Sparkles, Image as ImageIcon, Palette, Wand2, Download, Heart, ShoppingBag, ChevronRight, Shirt } from 'lucide-react'
+import { Upload, Sparkles, Image as ImageIcon, Palette, Wand2, Download, Heart, ShoppingBag, ChevronRight, Shirt, Sliders } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { designsApi, GeneratedDesign } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import QuotationForm from './QuotationForm'
+import StyleFusion from './StyleFusion'
+
+interface StyleBlend {
+  style: string
+  weight: number
+}
 
 interface DesignGeneratorProps { onTryOn?: (url: string, design: any) => void }
 
@@ -17,6 +23,11 @@ export default function DesignGenerator({ onTryOn }: DesignGeneratorProps) {
   const [generatedDesigns, setGeneratedDesigns] = useState<GeneratedDesign[]>([])
   const [savedDesigns, setSavedDesigns] = useState<Set<number>>(new Set())
   const [quotationForm, setQuotationForm]     = useState<{ design: any; imageUrl: string } | null>(null)
+  const [useStyleFusion, setUseStyleFusion]   = useState(false)
+  const [styleFusion, setStyleFusion]         = useState<StyleBlend[]>([
+    { style: 'modern', weight: 70 },
+    { style: 'traditional', weight: 30 }
+  ])
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) setReferenceImage(acceptedFiles[0])
@@ -34,17 +45,36 @@ export default function DesignGenerator({ onTryOn }: DesignGeneratorProps) {
 
     setIsGenerating(true)
     try {
-      const formData = new FormData()
-      formData.append('prompt', prompt)
-      formData.append('generation_type', referenceImage ? 'image' : 'prompt')
-      formData.append('user_id', String(user.id))
-      formData.append('num_outputs', String(numOutputs))
-      if (referenceImage) formData.append('reference_image', referenceImage)
+      let result
+      
+      if (useStyleFusion) {
+        // Use multi-style generation
+        result = await designsApi.generateMultiStyle({
+          prompt,
+          styles: styleFusion,
+          num_outputs: numOutputs,
+          user_id: user.id,
+          generation_type: 'multi-style'
+        })
+      } else {
+        // Use traditional generation
+        const formData = new FormData()
+        formData.append('prompt', prompt)
+        formData.append('generation_type', referenceImage ? 'image' : 'prompt')
+        formData.append('user_id', String(user.id))
+        formData.append('num_outputs', String(numOutputs))
+        if (referenceImage) formData.append('reference_image', referenceImage)
 
-      const result = await designsApi.generate(formData)
+        result = await designsApi.generate(formData)
+      }
+      
+      // Ensure result has the correct structure
+      const designData = result.design || result
+      const imageUrls = designData.image_urls || result.image_urls || []
+      
       // Prepend new result so latest appears first
-      setGeneratedDesigns(prev => [result, ...prev])
-      toast.success(`${result.image_urls.length} designs generated!`)
+      setGeneratedDesigns(prev => [designData, ...prev])
+      toast.success(`${imageUrls.length} designs generated!`)
     } catch (err: any) {
       toast.error(err.message || 'Failed to generate design')
     } finally {
@@ -153,6 +183,34 @@ export default function DesignGenerator({ onTryOn }: DesignGeneratorProps) {
               <p className="text-xs text-gray-400 mt-1.5">
                 Note: more designs = longer generation time (~30s each)
               </p>
+            </div>
+
+            {/* Style Fusion Toggle */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Sliders size={16} className="text-purple-500" />
+                  Advanced Style Fusion
+                </label>
+                <button
+                  onClick={() => setUseStyleFusion(!useStyleFusion)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    useStyleFusion ? 'bg-purple-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      useStyleFusion ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              {useStyleFusion && (
+                <StyleFusion
+                  enabled={useStyleFusion}
+                  onStyleFusionChange={setStyleFusion}
+                />
+              )}
             </div>
 
             {/* Dropzone */}

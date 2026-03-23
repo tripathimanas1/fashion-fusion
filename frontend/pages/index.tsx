@@ -37,6 +37,24 @@ export default function Home() {
     }
   }, [router.query])
 
+  // Handle garment query parameter for try-on
+  useEffect(() => {
+    const garment = router.query.garment as string
+    const design = router.query.design as string
+    
+    if (garment) {
+      let designObj = null
+      try {
+        designObj = design ? JSON.parse(design) : null
+      } catch (e) {
+        console.error('Failed to parse design object:', e)
+      }
+      
+      setTryOnGarment({ url: garment, design: designObj })
+      setActiveTab('tryon')
+    }
+  }, [router.query.garment, router.query.design])
+
   // Extract section from query for gallery
   const gallerySection = (router.query.section as 'my' | 'saved') || undefined
 
