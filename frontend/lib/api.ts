@@ -110,6 +110,30 @@ export const designsApi = {
       body: JSON.stringify(data),
     }),
 
+  recolorDesign: (data: {
+    design_id: number;
+    target_colors: string[];
+    fabric_type?: string;
+    preserve_highlights?: boolean;
+    add_as_variation?: boolean;
+  }) =>
+    request<any>('/api/v1/designs/recolor', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  swapFabric: (data: {
+    design_id: number;
+    target_fabric: string;
+    preserve_pattern?: boolean;
+    adjust_texture?: boolean;
+    add_as_variation?: boolean;
+  }) =>
+    request<any>('/api/v1/designs/fabric-swap', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   sketchToDesign: (formData: FormData) =>
     request<GeneratedDesign>('/api/v1/designs/sketch-to-design', {
       method: 'POST',

@@ -70,6 +70,12 @@ export default function VirtualTryOn({
     finally { setLoadingDesigns(false) }
   }
 
+  const selectDesignImage = (imageUrl: string, design: any) => {
+    setGarmentUrl(imageUrl)
+    setGarmentImage(null)
+    setSelectedDesignForBuy(design)
+  }
+
   // Dropzones
   const onBodyDrop = useCallback((files: File[]) => {
     if (files[0]) setBodyImage(files[0])
@@ -83,14 +89,8 @@ export default function VirtualTryOn({
     }
   }, [])
 
-  const { getRootProps: getBodyRootProps,    getInputProps: getBodyInputProps }    = useDropzone({ onDrop: onBodyDrop,    accept: { 'image/*': [] }, maxFiles: 1 })
+  const { getRootProps: getBodyRootProps, getInputProps: getBodyInputProps } = useDropzone({ onDrop: onBodyDrop, accept: { 'image/*': [] }, maxFiles: 1 })
   const { getRootProps: getGarmentRootProps, getInputProps: getGarmentInputProps } = useDropzone({ onDrop: onGarmentDrop, accept: { 'image/*': [] }, maxFiles: 1 })
-
-  const selectDesignImage = (imageUrl: string, design: any) => {
-    setGarmentUrl(imageUrl)
-    setGarmentImage(null)
-    setSelectedDesignForBuy(design)
-  }
 
   const processTryOn = async () => {
     if (!bodyImage) { toast.error('Please upload your body photo'); return }
@@ -206,8 +206,8 @@ export default function VirtualTryOn({
             {/* Source tabs */}
             <div className="flex gap-2 mb-4">
               {[
-                { id: 'upload', label: 'Upload Image' },
-                { id: 'saved',  label: 'Saved Designs' },
+                { id: 'upload', label: 'Upload Image', icon: Upload },
+                { id: 'saved', label: 'Saved Designs', icon: Heart }
               ].map(t => (
                 <button key={t.id} onClick={() => setPickerTab(t.id as any)}
                   className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
@@ -215,6 +215,7 @@ export default function VirtualTryOn({
                       ? 'bg-gradient-ocean text-white shadow-ocean'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}>
+                  <t.icon size={14} className="mr-1" />
                   {t.label}
                 </button>
               ))}
@@ -382,7 +383,8 @@ export default function VirtualTryOn({
                 </p>
               </div>
             )}
-          </div>
+
+            </div>
         </div>
       </div>
     </div>

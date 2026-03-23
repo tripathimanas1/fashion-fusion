@@ -30,6 +30,20 @@ class MultiStyleRequest(BaseModel):
     user_id: int
     generation_type: str = "multi-style"
 
+class RecolorRequest(BaseModel):
+    design_id: int
+    target_colors: List[str] = []  # List of hex colors to apply
+    fabric_type: Optional[str] = None  # Target fabric type (cotton, silk, denim, etc.)
+    preserve_highlights: bool = True  # Preserve lighting/shadows
+    add_as_variation: bool = True  # Add to existing design vs create new design
+
+class FabricSwapRequest(BaseModel):
+    design_id: int
+    target_fabric: str  # Target fabric type
+    preserve_pattern: bool = True  # Keep original pattern
+    adjust_texture: bool = True  # Apply fabric texture
+    add_as_variation: bool = True  # Add to existing design vs create new design
+
 class SaveDesignRequest(BaseModel):
     design_id: int
     user_id: int
@@ -196,6 +210,166 @@ async def generate_multi_style_design(request: MultiStyleRequest, db: Session = 
     except Exception as e:
         print(f"Multi-style generation error: {e}")
         raise HTTPException(status_code=500, detail=f"Multi-style generation failed: {str(e)}")
+
+
+@router.post("/recolor")
+async def recolor_design(request: RecolorRequest, db: Session = Depends(get_db)):
+    """AI-powered recoloring of existing designs."""
+    try:
+        # Get original design
+        design = db.query(Design).filter(Design.id == request.design_id).first()
+        if not design:
+            raise HTTPException(status_code=404, detail="Design not found")
+        
+        if not design.image_urls or len(design.image_urls) == 0:
+            raise HTTPException(status_code=400, detail="No images found for recoloring")
+        
+        # Create enhanced prompt for recoloring
+        color_instruction = f"Recolor this design with these colors: {', '.join(request.target_colors)}"
+        if request.fabric_type:
+            color_instruction += f". Change fabric to {request.fabric_type} texture"
+        
+        enhanced_prompt = f"{color_instruction}. Original design: {design.prompt}"
+        
+        # Generate recolored designs
+        image_urls = await replicate_service.generate_design_from_prompt(
+            enhanced_prompt, 
+            num_outputs=2
+        )
+        
+        # Download and save new images
+        saved_urls = download_and_save_images(image_urls)
+        
+        if request.add_as_variation:
+            # Add new images to existing design
+            updated_image_urls = design.image_urls + saved_urls
+            design.image_urls = updated_image_urls
+            db.commit()
+            
+            return {
+                "success": True,
+                "design_id": design.id,
+                "image_urls": saved_urls,
+                "total_images": len(updated_image_urls),
+                "new_images_count": len(saved_urls),
+                "message": f"Added {len(saved_urls)} new variation(s) to design"
+            }
+        else:
+            # Create new design record (legacy behavior)
+            color_palette, fabric_recommendations, style_recommendations = _extract_palette_and_style(saved_urls)
+            
+            new_design = Design(
+                user_id=design.user_id,
+                is_public=True,
+                title=f"Recolored: {design.title or 'Design'}",
+                prompt=enhanced_prompt,
+                generation_type="recolor",
+                reference_image_url=design.image_urls[0] if design.image_urls else None,
+                image_urls=saved_urls,
+                color_palette=color_palette,
+                fabric_recommendations=fabric_recommendations,
+                style_recommendations=style_recommendations
+            )
+            
+            db.add(new_design)
+            db.commit()
+            db.refresh(new_design)
+            
+            return {
+                "success": True,
+                "design_id": new_design.id,
+                "image_urls": saved_urls,
+                "color_palette": color_palette,
+                "style_recommendations": style_recommendations,
+                "fabric_recommendations": fabric_recommendations,
+                "original_design_id": design.id,
+                "recolor_colors": request.target_colors
+            }
+        
+    except Exception as e:
+        print(f"Recolor error: {e}")
+        raise HTTPException(status_code=500, detail=f"Recolor failed: {str(e)}")
+
+
+@router.post("/fabric-swap")
+async def swap_fabric(request: FabricSwapRequest, db: Session = Depends(get_db)):
+    """AI-powered fabric texture swapping."""
+    try:
+        # Get original design
+        design = db.query(Design).filter(Design.id == request.design_id).first()
+        if not design:
+            raise HTTPException(status_code=404, detail="Design not found")
+        
+        if not design.image_urls or len(design.image_urls) == 0:
+            raise HTTPException(status_code=400, detail="No images found for fabric swap")
+        
+        # Create enhanced prompt for fabric swap
+        fabric_instruction = f"Change fabric to {request.target_fabric}"
+        if request.preserve_pattern:
+            fabric_instruction += " while preserving original pattern"
+        if request.adjust_texture:
+            fabric_instruction += f" with realistic {request.target_fabric} texture"
+        
+        enhanced_prompt = f"{fabric_instruction}. Original design: {design.prompt}"
+        
+        # Generate fabric-swapped designs
+        image_urls = await replicate_service.generate_design_from_prompt(
+            enhanced_prompt, 
+            num_outputs=2
+        )
+        
+        # Download and save new images
+        saved_urls = download_and_save_images(image_urls)
+        
+        if request.add_as_variation:
+            # Add new images to existing design
+            updated_image_urls = design.image_urls + saved_urls
+            design.image_urls = updated_image_urls
+            db.commit()
+            
+            return {
+                "success": True,
+                "design_id": design.id,
+                "image_urls": saved_urls,
+                "total_images": len(updated_image_urls),
+                "new_images_count": len(saved_urls),
+                "message": f"Added {len(saved_urls)} new fabric variation(s) to design"
+            }
+        else:
+            # Create new design record (legacy behavior)
+            color_palette, fabric_recommendations, style_recommendations = _extract_palette_and_style(saved_urls)
+            
+            new_design = Design(
+                user_id=design.user_id,
+                is_public=True,
+                title=f"Fabric Swap: {design.title or 'Design'}",
+                prompt=enhanced_prompt,
+                generation_type="fabric-swap",
+                reference_image_url=design.image_urls[0] if design.image_urls else None,
+                image_urls=saved_urls,
+                color_palette=color_palette,
+                fabric_recommendations=[request.target_fabric] + " texture",
+                style_recommendations=style_recommendations
+            )
+            
+            db.add(new_design)
+            db.commit()
+            db.refresh(new_design)
+            
+            return {
+                "success": True,
+                "design_id": new_design.id,
+                "image_urls": saved_urls,
+                "color_palette": color_palette,
+                "style_recommendations": style_recommendations,
+                "fabric_recommendations": fabric_recommendations,
+                "original_design_id": design.id,
+                "target_fabric": request.target_fabric
+            }
+        
+    except Exception as e:
+        print(f"Fabric swap error: {e}")
+        raise HTTPException(status_code=500, detail=f"Fabric swap failed: {str(e)}")
 
 
 @router.post("/generate")

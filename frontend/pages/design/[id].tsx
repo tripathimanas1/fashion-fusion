@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
-import { ChevronLeft, ChevronRight, Heart, Shirt, ShoppingBag, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Heart, Shirt, ShoppingBag, X, Palette } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { designsApi, Design } from '../../lib/api'
 import { useAuth } from '../../contexts/AuthContext'
 import QuotationForm from '../../components/QuotationForm'
+import SmartRecolor from '../../components/SmartRecolor'
 
 export default function DesignDetail() {
   const router = useRouter()
@@ -19,6 +20,7 @@ export default function DesignDetail() {
   const [isSavedDesign, setIsSavedDesign] = useState(from === 'saved')
   const [isMyDesign, setIsMyDesign] = useState(from === 'my')
   const [savedDesignEntry, setSavedDesignEntry] = useState<any>(null)
+  const [showRecolor, setShowRecolor] = useState(false)
 
   const getBackRoute = () => {
     if (isSavedDesign) return '/?tab=gallery&section=saved'
@@ -124,6 +126,18 @@ export default function DesignDetail() {
       pathname: '/',
       query: { tab: 'tryon', garment: url, design: JSON.stringify(design) }
     })
+  }
+
+  const handleRecolorComplete = (newImages: string[], totalImages: number) => {
+    if (design) {
+      // Update the design with new images
+      setDesign({
+        ...design,
+        image_urls: [...design.image_urls, ...newImages]
+      })
+    }
+    setShowRecolor(false)
+    toast.success(`Added ${newImages.length} new variation(s) to design!`)
   }
 
   if (loading) {
@@ -271,7 +285,7 @@ export default function DesignDetail() {
 
               {/* Action Buttons */}
               <div className="p-4 bg-gray-50 border-t border-gray-100">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 mb-4">
                   <button 
                     onClick={() => handleTryOn(currentImage, design)}
                     className="flex items-center justify-center gap-2 py-3 bg-gradient-ocean text-white rounded-xl font-semibold shadow-ocean hover:shadow-fashion-lg transition-all"
@@ -288,9 +302,29 @@ export default function DesignDetail() {
                     <span className="text-sm">Order Now</span>
                   </button>
                 </div>
+
+                {/* Smart Recolor Button */}
+                <button 
+                  onClick={() => setShowRecolor(!showRecolor)}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold shadow-fashion hover:shadow-fashion-lg transition-all"
+                >
+                  <Palette size={18} />
+                  <span className="text-sm">Smart Recolor & Fabric Swap</span>
+                </button>
               </div>
             </div>
           </div>
+
+          {/* Smart Recolor Component */}
+          {showRecolor && design && (
+            <div className="mt-6">
+              <SmartRecolor
+                designId={design.id}
+                designImage={currentImage}
+                onRecolorComplete={handleRecolorComplete}
+              />
+            </div>
+          )}
 
           {/* Details Section */}
           <div className="space-y-6">
