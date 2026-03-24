@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "FashionFusion"
 
     # Database
-    DATABASE_URL: str = "sqlite:///./fashionfusion.db"
+    DATABASE_URL: str = "sqlite:///./fashion_fusion.db"
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
     DB_POOL_TIMEOUT: int = 30

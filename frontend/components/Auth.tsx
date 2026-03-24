@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, AtSign } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, User, Phone, MapPin, AtSign, Briefcase, Building, Star } from 'lucide-react'
 import { authApi, ApiError } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -18,9 +18,24 @@ const Auth: React.FC = () => {
     full_name: '',
     phone:     '',
     location:  '',
+    is_tailor: false,
+    business_name: '',
+    business_type: 'tailor' as 'tailor' | 'designer' | 'both',
+    specialties: '',
+    experience_years: '',
+    business_address: '',
+    business_phone: '',
   })
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target
+    setFormData({ 
+      ...formData, 
+      [name]: type === 'checkbox' ? checked : value 
+    })
+  }
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
@@ -36,17 +51,27 @@ const Auth: React.FC = () => {
         await login(access_token)
         // AuthContext now drives navigation — index.tsx will show main app
       } else {
-        await authApi.register({
+        const registrationData = {
           email:     formData.email,
           username:  formData.username,
           password:  formData.password,
           full_name: formData.full_name,
           phone:     formData.phone || undefined,
           location:  formData.location || undefined,
-        })
+          is_tailor: formData.is_tailor,
+          ...(formData.is_tailor && {
+            business_name: formData.business_name,
+            business_type: formData.business_type,
+            specialties: formData.specialties.split(',').map(s => s.trim()).filter(s => s),
+            experience_years: parseInt(formData.experience_years) || 0,
+            business_address: formData.business_address,
+            business_phone: formData.business_phone,
+          })
+        }
+        await authApi.register(registrationData)
         setSuccessMsg('Account created! Please sign in.')
         setIsLogin(true)
-        setFormData(f => ({ ...f, password: '' }))
+        setFormData(f => ({ ...f, password: '', is_tailor: false }))
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -165,6 +190,91 @@ const Auth: React.FC = () => {
                       onChange={handleInputChange} className={inputClass} placeholder="Mumbai, India" />
                   </div>
                 </div>
+
+                {/* Tailor Checkbox */}
+                <div className="border-t border-gray-200 pt-4">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="is_tailor"
+                      checked={formData.is_tailor}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 text-fashion-rose border-gray-300 rounded focus:ring-fashion-rose"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-gray-700">I am a fashion professional</span>
+                      <p className="text-xs text-gray-500">Tailor, designer, or custom clothing specialist</p>
+                    </div>
+                    <Briefcase className="h-5 w-5 text-fashion-rose" />
+                  </label>
+                </div>
+
+                {/* Business Profile - Only show if is_tailor is checked */}
+                {formData.is_tailor && (
+                  <div className="space-y-4 border-t border-gray-200 pt-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4">
+                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <Building className="h-4 w-4" />
+                      Business Profile
+                    </h4>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Business Name *</label>
+                      <div className="relative">
+                        <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input name="business_name" type="text" required value={formData.business_name}
+                          onChange={handleInputChange} className={inputClass} placeholder="Fashion Studio" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Business Type *</label>
+                      <select
+                        name="business_type"
+                        value={formData.business_type}
+                        onChange={handleSelectChange}
+                        className="appearance-none block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl placeholder-gray-400 bg-white/70 focus:outline-none focus:ring-2 focus:ring-fashion-rose focus:border-transparent transition-all duration-200 text-sm"
+                      >
+                        <option value="tailor">Tailor</option>
+                        <option value="designer">Fashion Designer</option>
+                        <option value="both">Both Tailor & Designer</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Specialties *</label>
+                      <input name="specialties" type="text" required value={formData.specialties}
+                        onChange={handleInputChange}
+                        className={inputClass}
+                        placeholder="e.g., Wedding wear, Casual wear, Alterations (comma-separated)" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Years of Experience *</label>
+                      <input name="experience_years" type="number" required min="0" max="50" value={formData.experience_years}
+                        onChange={handleInputChange}
+                        className={inputClass}
+                        placeholder="5" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Business Address *</label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input name="business_address" type="text" required value={formData.business_address}
+                          onChange={handleInputChange} className={inputClass} placeholder="123 Fashion Street, Mumbai" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Business Phone *</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input name="business_phone" type="tel" required value={formData.business_phone}
+                          onChange={handleInputChange} className={inputClass} placeholder="+91 98765 43210" />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 

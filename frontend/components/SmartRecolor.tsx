@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Palette, Droplets, RefreshCw, Sparkles } from 'lucide-react'
+import { Palette, Droplets, RefreshCw, Sparkles, Plus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { designsApi } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -20,15 +20,9 @@ const FABRIC_TYPES = [
   { value: 'velvet', label: 'Velvet', description: 'Luxurious, soft fabric' },
 ]
 
-const PRESET_COLORS = [
-  { name: 'Sunset Orange', hex: '#FF6B35' },
-  { name: 'Ocean Blue', hex: '#0077BE' },
-  { name: 'Forest Green', hex: '#10B981' },
-  { name: 'Royal Purple', hex: '#8B5CF6' },
-  { name: 'Rose Pink', hex: '#F43F5E' },
-  { name: 'Golden Yellow', hex: '#F59E0B' },
-  { name: 'Coral Red', hex: '#F97316' },
-  { name: 'Mint Green', hex: '#10B981' },
+const QUICK_COLORS = [
+  '#FF6B35', '#0077BE', '#10B981', '#8B5CF6', '#F43F5E', '#F59E0B', '#F97316', '#EC4899',
+  '#6366F1', '#14B8A6', '#F97316', '#84CC16', '#06B6D4', '#A855F7', '#EF4444', '#22C55E'
 ]
 
 export default function SmartRecolor({ designId, designImage, onRecolorComplete }: SmartRecolorProps) {
@@ -39,10 +33,15 @@ export default function SmartRecolor({ designId, designImage, onRecolorComplete 
   const [preservePattern, setPreservePattern] = useState(true)
   const [adjustTexture, setAdjustTexture] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [customColor, setCustomColor] = useState<string>('#FF6B35')
 
   const handleAddColor = (color: string) => {
     if (selectedColors.length < 5) {
-      setSelectedColors([...selectedColors, color])
+      if (!selectedColors.includes(color)) {
+        setSelectedColors([...selectedColors, color])
+      } else {
+        toast.error('This color is already selected')
+      }
     } else {
       toast.error('Maximum 5 colors allowed')
     }
@@ -50,6 +49,19 @@ export default function SmartRecolor({ designId, designImage, onRecolorComplete 
 
   const handleRemoveColor = (index: number) => {
     setSelectedColors(selectedColors.filter((_, i) => i !== index))
+  }
+
+  const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const color = e.target.value
+    setCustomColor(color)
+  }
+
+  const handleAddCustomColor = () => {
+    if (customColor.match(/^#[0-9A-F]{6}$/i)) {
+      handleAddColor(customColor)
+    } else {
+      toast.error('Please enter a valid hex color (e.g., #FF6B35)')
+    }
   }
 
   const handleRecolor = async () => {
@@ -162,23 +174,51 @@ export default function SmartRecolor({ designId, designImage, onRecolorComplete 
           <div className="bg-white rounded-xl p-5 border border-gray-200">
             <h4 className="text-sm font-semibold text-gray-700 mb-4">Select Colors</h4>
             
-            {/* Preset Colors */}
+            {/* Selected Colors */}
             <div className="mb-4">
-              <p className="text-xs text-gray-500 mb-2">Preset Colors</p>
-              <div className="grid grid-cols-5 gap-2">
-                {PRESET_COLORS.map((color) => (
+              <p className="text-xs text-gray-500 mb-2">Selected Colors ({selectedColors.length}/5)</p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {selectedColors.map((color, index) => (
+                  <div key={index} className="relative group">
+                    <div
+                      className="w-12 h-12 rounded-lg border-2 border-gray-300 shadow-sm"
+                      style={{ backgroundColor: color }}
+                    />
+                    <button
+                      onClick={() => handleRemoveColor(index)}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                {selectedColors.length === 0 && (
+                  <p className="text-gray-400 text-sm italic">No colors selected yet</p>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Color Palette */}
+            <div className="mb-4">
+              <p className="text-xs text-gray-500 mb-2">Quick Color Palette</p>
+              <div className="grid grid-cols-8 gap-2">
+                {QUICK_COLORS.map((color) => (
                   <button
-                    key={color.hex}
-                    onClick={() => handleAddColor(color.hex)}
-                    className="h-12 rounded-lg border-2 border-gray-200 hover:border-purple-400 transition-colors relative group"
-                    style={{ backgroundColor: color.hex }}
-                    title={color.name}
+                    key={color}
+                    onClick={() => handleAddColor(color)}
+                    className={`h-8 rounded-md border-2 transition-all ${
+                      selectedColors.includes(color)
+                        ? 'border-purple-500 shadow-purple-200 shadow-sm scale-110'
+                        : 'border-gray-200 hover:border-purple-300 hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
                   >
-                    {selectedColors.includes(color.hex) && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="bg-white/90 rounded-full p-1">
-                          <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010-1.414 1.414l-9 9a1 1 0 01-1.414 1.414l9-9a1 1 0 011.414-1.414l-9 9a1 1 0 011.414 1.414z" clipRule="evenodd" />
+                    {selectedColors.includes(color) && (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="bg-white/90 rounded-full p-0.5">
+                          <svg className="w-2 h-2 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         </div>
                       </div>
@@ -188,24 +228,34 @@ export default function SmartRecolor({ designId, designImage, onRecolorComplete 
               </div>
             </div>
 
-            {/* Selected Colors */}
+            {/* Custom Color Picker */}
             <div className="mb-4">
-              <p className="text-xs text-gray-500 mb-2">Selected Colors ({selectedColors.length}/5)</p>
-              <div className="flex flex-wrap gap-2">
-                {selectedColors.map((color, index) => (
-                  <div key={index} className="relative group">
-                    <div
-                      className="w-12 h-12 rounded-lg border-2 border-gray-300"
-                      style={{ backgroundColor: color }}
-                    />
-                    <button
-                      onClick={() => handleRemoveColor(index)}
-                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+              <p className="text-xs text-gray-500 mb-2">Custom Color</p>
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={customColor}
+                    onChange={handleCustomColorChange}
+                    className="w-12 h-12 rounded-lg border-2 border-gray-200 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={customColor}
+                    onChange={handleCustomColorChange}
+                    placeholder="#FF6B35"
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    maxLength={7}
+                  />
+                </div>
+                <button
+                  onClick={handleAddCustomColor}
+                  disabled={selectedColors.length >= 5}
+                  className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                >
+                  <Plus size={14} />
+                  Add
+                </button>
               </div>
             </div>
 

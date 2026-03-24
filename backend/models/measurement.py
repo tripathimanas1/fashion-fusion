@@ -28,7 +28,7 @@ class Measurement(Base):
     
     # Relationships
     user = relationship("User", back_populates="measurements")
-    order = relationship("Order", back_populates="measurements")
+    order = relationship("Order", back_populates="measurements_rel")
     
     def __repr__(self):
         return f"<Measurement(id={self.id}, user_id={self.user_id})>"

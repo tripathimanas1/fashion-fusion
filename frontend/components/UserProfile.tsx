@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 import { User, Mail, Phone, MapPin, Edit2, Save, X, LogOut, Palette, ShoppingBag, Heart } from 'lucide-react'
 import { authApi, designsApi, ordersApi } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
@@ -6,6 +7,7 @@ import toast from 'react-hot-toast'
 
 export default function UserProfile() {
   const { user, logout } = useAuth()
+  const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading]     = useState(false)
   const [stats, setStats]         = useState({ designs: 0, saved: 0, orders: 0 })
@@ -186,9 +188,17 @@ export default function UserProfile() {
               </span>
             )}
             {user.is_tailor && (
-              <span className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 rounded-full text-sm font-medium">
-                <ShoppingBag size={14} /> Tailor
-              </span>
+              <>
+                <span className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 rounded-full text-sm font-medium">
+                  <ShoppingBag size={14} /> Tailor
+                </span>
+                <button
+                  onClick={() => router.push('/tailor/dashboard')}
+                  className="px-4 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-full text-sm font-medium shadow-sm hover:shadow-md transition-all"
+                >
+                  Open Tailor Portal
+                </button>
+              </>
             )}
           </div>
         )}

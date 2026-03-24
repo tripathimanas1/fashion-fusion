@@ -56,18 +56,28 @@ def create_fresh_database():
                     id               INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id          INTEGER UNIQUE NOT NULL REFERENCES users(id),
                     business_name    VARCHAR NOT NULL,
-                    specialization   VARCHAR NOT NULL,
-                    description      TEXT,
-                    rating           REAL DEFAULT 0.0,
-                    location         VARCHAR,
-                    phone            VARCHAR,
-                    email            VARCHAR UNIQUE NOT NULL,
-                    is_verified      INTEGER DEFAULT 0,
-                    is_active        INTEGER DEFAULT 1,
+                    business_type    VARCHAR(50) DEFAULT 'tailor',
+                    business_address VARCHAR NOT NULL,
+                    business_phone  VARCHAR NOT NULL,
+                    business_email  VARCHAR NOT NULL,
+                    specialties     TEXT DEFAULT '[]',
                     experience_years INTEGER DEFAULT 0,
+                    description      TEXT,
+                    services_offered TEXT,
                     price_range_min  REAL,
                     price_range_max  REAL,
                     portfolio_images TEXT,
+                    bio             TEXT,
+                    location         VARCHAR,
+                    service_radius_km INTEGER DEFAULT 50,
+                    is_available    INTEGER DEFAULT 1,
+                    is_verified      INTEGER DEFAULT 0,
+                    is_active        INTEGER DEFAULT 1,
+                    rating           REAL DEFAULT 0.0,
+                    total_reviews    INTEGER DEFAULT 0,
+                    total_orders     INTEGER DEFAULT 0,
+                    completed_orders INTEGER DEFAULT 0,
+                    average_response_time REAL DEFAULT 0.0,
                     created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
@@ -256,7 +266,24 @@ def create_fresh_database():
                 )
             """))
 
-            print("✅ All 13 tables created")
+            # ── order_messages ────────────────────────────────────────────────
+            conn.execute(text("""
+                CREATE TABLE order_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id INTEGER NOT NULL REFERENCES orders(id),
+                    sender_id INTEGER NOT NULL REFERENCES users(id),
+                    message TEXT NOT NULL,
+                    message_type VARCHAR(20) DEFAULT 'text',
+                    file_url VARCHAR(500),
+                    file_name VARCHAR(255),
+                    file_type VARCHAR(50),
+                    is_read BOOLEAN DEFAULT 0,
+                    read_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+
+            print("✅ All 14 tables created")
 
             # ── Indexes ──────────────────────────────────────────────────────
             print("📊 Creating indexes...")
@@ -273,7 +300,7 @@ def create_fresh_database():
                 "CREATE INDEX idx_orders_tailor_id         ON orders(tailor_id)",
                 "CREATE INDEX idx_orders_status            ON orders(status)",
                 "CREATE INDEX idx_tailors_user_id          ON tailors(user_id)",
-                "CREATE INDEX idx_tailors_specialization   ON tailors(specialization)",
+                "CREATE INDEX idx_tailors_business_type     ON tailors(business_type)",
                 "CREATE INDEX idx_tailors_rating           ON tailors(rating)",
                 "CREATE INDEX idx_measurements_user_id     ON measurements(user_id)",
                 "CREATE INDEX idx_marketplace_is_active    ON marketplace(is_active)",
@@ -281,6 +308,9 @@ def create_fresh_database():
                 "CREATE INDEX idx_quotation_req_status     ON quotation_requests(status)",
                 "CREATE INDEX idx_tailor_quotes_request    ON tailor_quotes(request_id)",
                 "CREATE INDEX idx_tailor_quotes_tailor     ON tailor_quotes(tailor_user_id)",
+                "CREATE INDEX idx_order_messages_order      ON order_messages(order_id)",
+                "CREATE INDEX idx_order_messages_sender     ON order_messages(sender_id)",
+                "CREATE INDEX idx_order_messages_created    ON order_messages(created_at)",
             ]
             for sql in indexes:
                 conn.execute(text(sql))
@@ -288,7 +318,7 @@ def create_fresh_database():
 
             # ── Triggers ─────────────────────────────────────────────────────
             print("⚡ Creating triggers...")
-            for tbl in ("users", "designs", "boards", "orders", "measurements"):
+            for tbl in ("users", "designs", "boards", "orders", "measurements", "order_messages"):
                 conn.execute(text(f"""
                     CREATE TRIGGER trg_{tbl}_updated_at
                     AFTER UPDATE ON {tbl}
@@ -296,13 +326,13 @@ def create_fresh_database():
                         UPDATE {tbl} SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
                     END
                 """))
-            print("✅ 5 updated_at triggers created")
+            print("✅ 6 updated_at triggers created")
 
             conn.commit()
 
         print("\n✅ Fresh database ready!")
         print(f"   📁 {db_path}")
-        print(f"   📋 13 tables · {len(indexes)} indexes · 5 triggers")
+        print(f"   📋 15 tables · {len(indexes)} indexes · 6 triggers")
 
     except Exception as e:
         print(f"❌ Error: {e}")

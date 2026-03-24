@@ -8,10 +8,10 @@ from database import engine
 from models import (
     User, Design, SavedDesign, Board, Order, OrderItem,
     Measurement, OrderStatusEnum, OrderStatusModel,
-    QuotationRequest, TailorQuote
+    QuotationRequest, TailorQuote, Tailor, OrderMessage
 )
 
-from api import designs, tryon, orders, auth, recommendations, marketplace, auth_extended, quotations
+from api import designs, tryon, orders, auth, recommendations, marketplace, quotations, tailor
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -28,13 +28,13 @@ app.add_middleware(
 )
 
 app.include_router(auth.router,            prefix=f"{settings.API_V1_STR}/auth",            tags=["auth"])
-app.include_router(auth_extended.router,   prefix=f"{settings.API_V1_STR}/auth",            tags=["auth"])
 app.include_router(designs.router,         prefix=f"{settings.API_V1_STR}/designs",         tags=["designs"])
 app.include_router(tryon.router,           prefix=f"{settings.API_V1_STR}/tryon",           tags=["tryon"])
 app.include_router(orders.router,          prefix=f"{settings.API_V1_STR}/orders",          tags=["orders"])
 app.include_router(recommendations.router, prefix=f"{settings.API_V1_STR}/recommendations", tags=["recommendations"])
 app.include_router(marketplace.router,     prefix=f"{settings.API_V1_STR}/marketplace",     tags=["marketplace"])
 app.include_router(quotations.router,      prefix=f"{settings.API_V1_STR}/quotations",      tags=["quotations"])
+app.include_router(tailor.router,         prefix=f"{settings.API_V1_STR}/tailor",         tags=["tailor"])
 
 os.makedirs("static/designs", exist_ok=True)
 os.makedirs("temp", exist_ok=True)

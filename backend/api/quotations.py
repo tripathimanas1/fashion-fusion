@@ -244,7 +244,10 @@ def get_tailor_pending_requests(tailor_user_id: int, db: Session = Depends(get_d
     pending = (
         db.query(QuotationRequest)
         .filter(
-            QuotationRequest.status == QuotationStatus.PENDING.value,
+            QuotationRequest.status.in_([
+                QuotationStatus.PENDING.value,
+                QuotationStatus.QUOTED.value,
+            ]),
             ~QuotationRequest.id.in_(already_quoted)
         )
         .order_by(QuotationRequest.created_at.desc())
@@ -262,7 +265,12 @@ def get_tailor_pending_requests(tailor_user_id: int, db: Session = Depends(get_d
             "request_id":         req.id,
             "design_id":          req.design_id,
             "design_title":       design.title if design else "",
+            "design_description": design.description if design else "",
+            "design_prompt":      design.prompt if design else "",
             "design_image_urls":  urls,
+            "color_palette":      design.color_palette if design and design.color_palette else [],
+            "fabric_recommendations": design.fabric_recommendations if design and design.fabric_recommendations else [],
+            "style_recommendations": design.style_recommendations if design and design.style_recommendations else [],
             "selected_image_url": req.selected_image_url,
             "standard_size":      req.standard_size,
             "chest":              req.chest,

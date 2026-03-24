@@ -1,472 +1,271 @@
-# FashionFusion - AI-Powered Fashion Design Platform
+# FashionFusion
 
-<div align="center">
-  <img src="https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js" alt="Next.js">
-  <img src="https://img.shields.io/badge/FastAPI-0.104.1-green?style=for-the-badge&logo=fastapi" alt="FastAPI">
-  <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript" alt="TypeScript">
-  <img src="https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?style=for-the-badge&logo=tailwindcss" alt="TailwindCSS">
-  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/AWS%20S3-Storage-FF9900?style=for-the-badge&logo=amazon-s3" alt="AWS S3">
-</div>
+FashionFusion is an AI-assisted fashion platform with three connected workflows:
 
-## 🎥 Live Demo
+- generate fashion designs from prompts, reference images, or sketches
+- preview garments with virtual try-on
+- send a design to tailors, collect competing quotes, and convert the accepted quote into a confirmed order
 
-[![FashionFusion Demo](https://img.shields.io/badge/🎥-Watch%20Demo-red?style=for-the-badge)](https://www.loom.com/share/a9febcf45d74401ea6d0b654f41a9029)
+The project uses a Next.js frontend and a FastAPI backend. For local development, the backend currently defaults to SQLite.
 
-<div align="center">
-  <a href="https://www.loom.com/share/a9febcf45d74401ea6d0b654f41a9029">
-    <img src="https://cdn.loom.com/sessions/thumbnails/a9febcf45d74401ea6d0b654f41a9029-with-play.gif" alt="FashionFusion App Demo" width="800">
-  </a>
-</div>
+## What It Does
 
----
+### Design Creation
 
-FashionFusion is a production-ready AI-powered fashion design platform that enables users to create stunning fashion designs using cutting-edge AI technology. The platform features AI-powered design generation, virtual try-on capabilities, and a marketplace for connecting with local tailors.
+- Prompt-to-design generation
+- Reference-image guided generation
+- Sketch-to-design conversion
+- Multi-style fusion generation
+- AI-assisted recolor and fabric swap variations
+- Color palette extraction, style suggestions, and fabric recommendations
 
-## ✨ Key Features
+### User Experience
 
-### 🎨 AI Design Generation
-- **Prompt-based Generation**: Create designs from text descriptions
-- **Image-to-Image**: Use reference images to guide generation
-- **Sketch-to-Design**: Convert rough sketches into professional designs
-- **Color Palette Extraction**: AI-powered color analysis and fabric recommendations
-- **Style Recommendations**: CLIP-based style matching and suggestions
+- Account signup and login with JWT auth
+- Personal design gallery
+- Save and unsave designs
+- Boards for organizing saved work
+- Marketplace browsing for public designs and tailors
 
-### 👗 Virtual Try-On
-- Upload body photos and garment images
-- AI-powered virtual fitting simulation
-- Body measurement analysis
+### Tailor Workflow
 
-### 🖼️ Design Gallery & Inspiration
-- Browse trending designs
-- Save designs to personal boards
-- Discover similar styles using AI recommendations
+- Tailor registration with business profile fields
+- Dedicated tailor portal
+- Pending quotation requests visible before they become confirmed orders
+- View details of the order
+- Quote submission from the tailor portal
 
-### 🛍️ Marketplace
-- Connect with local tailors
-- Place manufacturing orders
-- Track order status
-- Compare quotes from multiple tailors
-
-## 🏗️ Architecture
-
-```
-Frontend (Next.js + React + Tailwind)
-           ↓
-    FastAPI Backend
-           ↓
-    Cloud GPU AI Services
-           ↓
-   PostgreSQL + S3 Storage
-```
-
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
-- **Next.js 14** - React framework with App Router
-- **TypeScript** - Type safety and better DX
-- **TailwindCSS** - Modern utility-first styling
-- **Lucide React** - Beautiful icon library
-- **React Dropzone** - Drag-and-drop file uploads
-- **Axios** - HTTP client with interceptors
+
+- Next.js 14
+- React 18
+- TypeScript
+- Tailwind CSS
+- Lucide React
+- React Dropzone
+- React Hot Toast
 
 ### Backend
-- **FastAPI** - Modern async Python web framework
-- **SQLAlchemy** - Powerful ORM with async support
-- **PostgreSQL** - Production-grade database
-- **AWS S3** - Scalable file storage
-- **Pydantic** - Data validation and settings
 
-### AI Services
-- **Google AI Studio (Gemini)** - Text-to-image generation
-- **Replicate API** - Advanced AI model hosting
-- **Stable Diffusion** - Image generation backbone
-- **CLIP** - Style and similarity matching
-- **OpenAI** - Advanced text processing
+- FastAPI
+- SQLAlchemy 2
+- Alembic
+- Pydantic Settings
+- JWT auth with `python-jose`
+- Passlib / bcrypt
 
-## 🚀 Quick Start
+### AI and Media
+
+- Gemini-backed image generation services
+- sentence-transformers / transformers for style-related features
+- Pillow for image processing
+- S3-compatible object storage support
+
+### Database
+
+- Local default: SQLite (`fashion_fusion.db`)
+- PostgreSQL-compatible dependencies are present for deployment scenarios
+
+## Current Architecture
+
+```text
+frontend (Next.js)
+  -> backend (FastAPI)
+     -> AI services / media processing
+     -> SQLite locally
+     -> optional S3-compatible storage
+```
+
+## Repository Layout
+
+```text
+fashion-fusion/
+|-- frontend/
+|   |-- components/
+|   |-- contexts/
+|   |-- lib/
+|   |-- pages/
+|   `-- styles/
+|-- backend/
+|   |-- alembic/
+|   |-- api/
+|   |-- models/
+|   |-- services/
+|   |-- database/
+|   |-- static/
+|   `-- temp/
+`-- README.md
+```
+
+## Main API Areas
+
+
+Useful local URLs:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+- API docs: `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/health`
+
+## Local Development
 
 ### Prerequisites
-- Node.js 18+ and npm
+
+- Node.js 18+
 - Python 3.9+
-- PostgreSQL database
-- AWS S3 bucket (or compatible)
 
-### Installation
+### 1. Clone the repo
 
-1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/fashion-fusion.git
+git clone <your-repo-url>
 cd fashion-fusion
 ```
 
-2. **Backend Setup**
+### 2. Backend setup
+
 ```bash
 cd backend
+python -m venv venv
+venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
-# Edit .env with your credentials
+copy .env.example .env
 python create_fresh_database.py
 python main.py
 ```
 
-3. **Frontend Setup**
+Notes:
+
+- local development defaults to `sqlite:///./fashion_fusion.db`
+- `create_fresh_database.py` rebuilds the local SQLite database from scratch
+- Alembic is configured in `backend/alembic.ini`
+
+### 3. Frontend setup
+
+In a second terminal:
+
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local
-# Edit .env.local with your API URLs
+copy .env.local.example .env.local
 npm run dev
 ```
 
-4. **Access the Application**
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+## Environment Variables
 
-## 📋 Environment Variables
+### Backend (`backend/.env`)
 
-### Backend (.env)
+Important values:
+
 ```env
-# Database
-DATABASE_URL=postgresql://username:password@localhost:5432/fashionfusion
+DATABASE_URL=sqlite:///./fashion_fusion.db
+SECRET_KEY=change-me
+JWT_SECRET=change-me
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# AI Services
-GOOGLE_API_KEY=your_google_api_key
-REPLICATE_API_TOKEN=your_replicate_token
+GOOGLE_API_KEY=
+TRYON_API_KEY=
 
-# S3 Storage
-S3_BUCKET=your_bucket_name
-S3_ACCESS_KEY=your_access_key
-S3_SECRET_KEY=your_secret_key
-S3_REGION=us-east-1
-S3_ENDPOINT=optional_custom_endpoint
+S3_BUCKET=
+S3_ACCESS_KEY=
+S3_SECRET_KEY=
+S3_REGION=
+S3_ENDPOINT=
 
-# Security
-SECRET_KEY=your_jwt_secret_key
-JWT_SECRET=your_jwt_secret
+FRONTEND_URL=http://localhost:3000
+BACKEND_URL=http://localhost:8000
 ```
 
-### ⚠️ Security Notes
-- **Never commit credentials to GitHub**
-- **All sensitive values are empty in config.py**
-- **Set actual values in your .env file**
-- **Use environment variables in production**
+### Frontend (`frontend/.env.local`)
 
-### Frontend (.env.local)
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_FRONTEND_URL=http://localhost:3000
 ```
 
-## 🐳 Docker Deployment
+## Database Notes
 
-```bash
-# Build and run with Docker Compose
-docker-compose up --build
+### Local SQLite
 
-# Or build individual services
-docker build -t fashion-fusion-frontend ./frontend
-docker build -t fashion-fusion-backend ./backend
+The app currently runs well locally with SQLite. The main local database file is:
+
+```text
+backend/fashion_fusion.db
 ```
 
-## 📦 Production Deployment
+### Migrations
 
-### Vercel (Frontend)
-1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy automatically on push to main branch
-
-### Railway/Render (Backend)
-1. Connect repository to Railway/Render
-2. Configure PostgreSQL database
-3. Set environment variables
-4. Deploy automatically
-
-### AWS S3 Setup
-1. Create S3 bucket
-2. Configure CORS for your domain
-3. Set up IAM user with S3 permissions
-4. Add credentials to environment variables
-
-## 🧪 Testing
+Alembic is present and configured. Typical command:
 
 ```bash
-# Backend tests
+cd backend
+alembic upgrade head
+```
+
+### Fresh rebuild
+
+If you want to recreate the local database:
+
+```bash
+cd backend
+python create_fresh_database.py
+```
+
+
+
+## Known Product Behavior
+
+- A user order request is first a quotation request, not a confirmed order.
+- Confirmed orders are created only after a user accepts a tailor quote.
+- Tailor dashboard quote submission currently uses a simple browser-prompt flow from the UI.
+
+## Testing
+
+Backend:
+
+```bash
 cd backend
 pytest
-
-# Frontend tests
-cd frontend
-npm test
 ```
 
-## 📁 Project Structure
+Frontend lint:
 
-```
-fashion-fusion/
-├── frontend/                 # Next.js React application
-│   ├── components/          # Reusable React components
-│   ├── pages/              # Next.js pages
-│   ├── styles/             # Global styles and Tailwind
-│   └── utils/             # Utility functions
-├── backend/                 # FastAPI Python application
-│   ├── api/                # API route handlers
-│   ├── models/             # SQLAlchemy models
-│   ├── services/           # Business logic and AI services
-│   └── database/          # Database configuration
-├── database/               # Database schema and migrations
-├── docker-compose.yml      # Multi-service Docker configuration
-└── README.md
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Google AI Studio** - For providing powerful image generation
-- **Replicate** - For hosting advanced AI models
-- **Unsplash** - For beautiful sample images
-- **TailwindCSS** - For amazing utility-first CSS framework
-
-## 📞 Support
-
-If you have any questions or need support, please:
-- Open an issue on GitHub
-- Contact us at support@fashionfusion.com
-- Check our [documentation](https://docs.fashionfusion.com)
-
----
-
-<div align="center">
-  <strong>⭐ Star this repository if it helped you!</strong><br>
-  <em>Built with ❤️ by the FashionFusion Team</em>
-</div>
-
-### Backend
-- **FastAPI** - Modern Python web framework
-- **SQLAlchemy** - ORM
-- **PostgreSQL** - Database
-- **JWT** - Authentication
-- **Pydantic** - Data validation
-
-### AI Services
-- **Replicate API** - Primary AI inference
-- **Stable Diffusion 1.5** - Image generation
-- **ControlNet** - Sketch conditioning
-- **CLIP** - Style recommendations
-- **OpenCV + scikit-learn** - Color extraction
-
-## 📦 Installation
-
-### Prerequisites
-- Node.js 18+
-- Python 3.9+
-- PostgreSQL
-- Replicate API token
-
-### Backend Setup
-
-1. Navigate to backend directory:
-```bash
-cd backend
-```
-
-2. Create virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
-
-5. Set up database:
-```bash
-# Create database
-createdb fashionfusion
-
-# Run schema
-psql fashionfusion < database/schema.sql
-```
-
-6. Start backend server:
-```bash
-python main.py
-```
-
-### Frontend Setup
-
-1. Navigate to frontend directory:
 ```bash
 cd frontend
+npm run lint
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+## Suggested Demo Flows
 
-3. Set up environment variables:
-```bash
-# Create .env.local
-echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
-```
+### User flow
 
-4. Start frontend server:
-```bash
-npm run dev
-```
+1. Sign up as a normal user.
+2. Generate a design.
+3. Save it or open it in marketplace-style flows.
+4. Click `Order` and submit a quotation request.
+5. Check Track Orders for incoming tailor quotes.
 
-## 🔧 Configuration
+### Tailor flow
 
-### Environment Variables
+1. Sign up as a tailor.
+2. Open the Tailor Portal.
+3. Review pending quotation requests.
+4. Open full request details.
+5. Submit a quote.
 
-#### Backend (.env)
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost/fashionfusion
+## Status Summary
 
-# Security
-JWT_SECRET=your-super-secret-jwt-key-here
+Recent codebase improvements reflected in this README:
 
-# Replicate API
-REPLICATE_API_TOKEN=your-replicate-api-token
+- cleaned auth routing to use a single active auth router
+- stabilized SQLite + Alembic local migration behavior
+- fixed tailor registration data consistency
+- added self-healing tailor profile creation for older broken accounts
+- surfaced tailor portal navigation in the frontend
+- updated tailor portal to show quotation requests before order confirmation
+- added detailed request review UI before quoting
 
-# AWS S3 Storage (optional)
-S3_BUCKET=fashionfusion-storage
-S3_ACCESS_KEY=your-s3-access-key
-S3_SECRET_KEY=your-s3-secret-key
-S3_REGION=us-east-1
-```
+## License
 
-#### Frontend (.env.local)
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-### Replicate API Setup
-
-1. Sign up at [Replicate](https://replicate.com)
-2. Get your API token from dashboard
-3. Add token to `REPLICATE_API_TOKEN` environment variable
-
-## 🚀 Running in Production
-
-### Using Docker (Recommended)
-
-1. Build and run with Docker Compose:
-```bash
-docker-compose up -d
-```
-
-### Manual Deployment
-
-1. **Backend**:
-   - Use Gunicorn for production:
-   ```bash
-   pip install gunicorn
-   gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker
-   ```
-
-2. **Frontend**:
-   - Build for production:
-   ```bash
-   npm run build
-   npm start
-   ```
-
-3. **Database**:
-   - Use managed PostgreSQL service
-   - Set up connection pooling
-   - Configure backups
-
-4. **Storage**:
-   - Use AWS S3 or Cloudflare R2 for image storage
-   - Configure CDN for faster delivery
-
-## 📊 API Documentation
-
-Once the backend is running, visit:
-- **API Docs**: `http://localhost:8000/docs`
-- **OpenAPI Schema**: `http://localhost:8000/openapi.json`
-
-### Key Endpoints
-
-#### Design Generation
-- `POST /api/v1/designs/generate` - Generate designs from prompt/image
-- `POST /api/v1/designs/sketch-to-design` - Convert sketch to design
-
-#### Virtual Try-On
-- `POST /api/v1/tryon/virtual-tryon` - Process virtual try-on
-- `POST /api/v1/tryon/analyze-body` - Analyze body measurements
-
-#### Recommendations
-- `POST /api/v1/recommendations/styles/from-image` - Get style recommendations
-- `GET /api/v1/recommendations/trending` - Get trending designs
-
-#### Authentication
-- `POST /api/v1/auth/register` - User registration
-- `POST /api/v1/auth/login` - User login
-
-## 🎯 Performance Targets
-
-- **Design Generation**: 3-8 seconds per request
-- **Virtual Try-On**: 5-10 seconds per request
-- **Image Upload**: <2 seconds
-- **API Response**: <500ms for non-AI endpoints
-
-## 🔒 Security
-
-- JWT-based authentication
-- API rate limiting
-- Input validation and sanitization
-- Secure file upload handling
-- Environment variable protection
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the API documentation
-- Review the troubleshooting guide
-
-## 🗺️ Roadmap
-
-- [ ] Advanced virtual try-on with multiple poses
-- [ ] Real-time design collaboration
-- [ ] Mobile app development
-- [ ] Advanced fabric simulation
-- [ ] Social features and sharing
-- [ ] Integration with fashion brands
-- [ ] AR try-on capabilities
+This repository does not currently include a separate license file in the workspace root. Add one if you want to publish or distribute the project under a specific license.

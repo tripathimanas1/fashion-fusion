@@ -93,21 +93,58 @@ export const authApi = {
 
 export const designsApi = {
   generate: (formData: FormData) =>
-    request<GeneratedDesign>('/api/v1/designs/generate', {
+    request<any>('/api/v1/designs/generate', {
       method: 'POST',
       body: formData,
-    } as RequestInit),
+    }),
+
+  generateDesign: (formData: FormData) =>
+    request<any>('/api/v1/designs/generate', {
+      method: 'POST',
+      body: formData,
+    }),
 
   generateMultiStyle: (data: {
-    prompt: string;
-    styles: { style: string; weight: number }[];
-    num_outputs: number;
-    user_id: number;
-    generation_type: string;
+    prompt: string
+    styles: { style: string; weight: number }[]
+    num_outputs?: number
+    user_id: number
+    generation_type?: string
   }) =>
-    request<GeneratedDesign>('/api/v1/designs/generate-multi-style', {
+    request<any>('/api/v1/designs/generate-multi-style', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+
+  multiStyleGenerate: (data: {
+    prompt: string
+    styles: { style: string; weight: number }[]
+    num_outputs?: number
+    user_id: number
+    generation_type?: string
+  }) =>
+    request<any>('/api/v1/designs/generate-multi-style', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getDesigns: (page: number = 1, limit: number = 20) =>
+    request<any>(`/api/v1/designs?page=${page}&limit=${limit}`),
+
+  getDesign: (id: number) =>
+    request<any>(`/api/v1/designs/${id}`),
+
+  saveDesign: (designId: number) =>
+    request<any>(`/api/v1/designs/${designId}/save`, {
+      method: 'POST',
+    }),
+
+  getSaved: (userId: number) =>
+    request<any>(`/api/v1/designs/saved/${userId}`),
+
+  deleteDesign: (id: number) =>
+    request<any>(`/api/v1/designs/${id}`, {
+      method: 'DELETE',
     }),
 
   recolorDesign: (data: {
@@ -316,7 +353,13 @@ export interface Order {
   order_number: string
   status: string
   total_amount: number
-  created_at: string
+  customer_name: string
+  customer_email: string
+  customer_phone: string
+  order_date: string
+  delivery_date: string
+  delivery_address: string
+  order_items: any[]
 }
 
 // ── Quotations ────────────────────────────────────────────────────────────────
@@ -338,4 +381,66 @@ export const quotationsApi = {
 
   getTailorPending: (tailorUserId: number) =>
     request<any[]>(`/api/v1/quotations/tailor/${tailorUserId}/pending`),
+}
+
+export const tailorApi = {
+  getProfile: () =>
+    request<any>('/api/v1/tailor/profile'),
+
+  updateProfile: (profileData: any) =>
+    request<any>('/api/v1/tailor/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    }),
+
+  getOrders: (params?: { status?: string; limit?: number; offset?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.status) query.append('status', params.status)
+    if (params?.limit) query.append('limit', params.limit.toString())
+    if (params?.offset) query.append('offset', params.offset.toString())
+    return request<any>(`/api/v1/tailor/orders?${query.toString()}`)
+  },
+
+  getOrder: (orderId: number) =>
+    request<any>(`/api/v1/tailor/orders/${orderId}`),
+
+  createQuote: (orderId: number, quoteData: {
+    quote_price: number
+    base_price: number
+    materials_cost: number
+    labor_cost: number
+    quote_description: string
+    quote_timeline: string
+  }) =>
+    request<any>(`/api/v1/tailor/orders/${orderId}/quote`, {
+      method: 'POST',
+      body: JSON.stringify(quoteData),
+    }),
+
+  updateOrderStatus: (orderId: number, updateData: {
+    status?: string
+    progress_percentage?: number
+    current_stage?: string
+    progress_note?: string
+    progress_image_url?: string
+  }) =>
+    request<any>(`/api/v1/tailor/orders/${orderId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
+    }),
+
+  getOrderMessages: (orderId: number) =>
+    request<any>(`/api/v1/tailor/orders/${orderId}/messages`),
+
+  sendMessage: (orderId: number, messageData: {
+    message: string
+    message_type?: string
+  }) =>
+    request<any>(`/api/v1/tailor/orders/${orderId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(messageData),
+    }),
+
+  getAnalytics: () =>
+    request<any>('/api/v1/tailor/analytics'),
 }
