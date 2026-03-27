@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.types import TypeDecorator
 from models.base import Base
+from models.order import OrderStatusEnum
 
 
 class JSONText(TypeDecorator):
@@ -81,21 +82,34 @@ class Tailor(Base):
     user = relationship("User", back_populates="tailor_profile")
     applications = relationship("TailorApplication", back_populates="tailor")
 
+    @staticmethod
+    def _status_value(order):
+        status = getattr(order, "status", None)
+        return status.value if hasattr(status, "value") else status
+
     @property
     def active_orders_count(self):
         """Count of currently active orders"""
         if not self.user:
             return 0
-        return len([order for order in self.user.tailor_orders 
-                   if order.status in ['ORDER_ACTIVE', 'IN_PROGRESS']])
+        active_statuses = {
+            OrderStatusEnum.ORDER_ACTIVE.value,
+            OrderStatusEnum.IN_PROGRESS.value,
+        }
+        return len([
+            order for order in self.user.tailor_orders
+            if self._status_value(order) in active_statuses
+        ])
 
     @property
     def pending_quotes_count(self):
         """Count of orders awaiting quote"""
         if not self.user:
             return 0
-        return len([order for order in self.user.tailor_orders 
-                   if order.status == 'PENDING_QUOTE'])
+        return len([
+            order for order in self.user.tailor_orders
+            if self._status_value(order) == OrderStatusEnum.PENDING_QUOTE.value
+        ])
 
     @property
     def completion_rate(self):

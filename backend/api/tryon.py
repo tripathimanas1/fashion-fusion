@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from typing import List
 import uuid
 import os
 
 from database import get_db
 from services.replicate_service import replicate_service
-from config import settings
+from services.s3_service import s3_service
+import io
 
 router = APIRouter()
 
@@ -17,26 +17,22 @@ async def virtual_tryon(
     db: Session = Depends(get_db)
 ):
     try:
-        # Save images temporarily
-        body_filename = f"body_{uuid.uuid4()}.jpg"
-        garment_filename = f"garment_{uuid.uuid4()}.jpg"
-        
-        body_path = f"temp/{body_filename}"
-        garment_path = f"temp/{garment_filename}"
-        
-        os.makedirs("temp", exist_ok=True)
-        
-        # Save body image
-        with open(body_path, "wb") as f:
-            content = await body_image.read()
-            f.write(content)
-        
-        with open(garment_path, "wb") as f:
-            f.write(await garment_image.read())
-        
-        # Create URLs for saved images
-        body_url = f"{settings.BACKEND_URL}/static/{body_filename}"
-        garment_url = f"{settings.BACKEND_URL}/static/{garment_filename}"
+        # Upload input images to S3 so Gemini can fetch them via public URLs.
+        body_buffer = io.BytesIO(await body_image.read())
+        body_buffer.seek(0)
+        body_url = s3_service.upload_file(
+            body_buffer,
+            filename=f"body_{uuid.uuid4()}.jpg",
+            folder="tryon_inputs",
+        )
+
+        garment_buffer = io.BytesIO(await garment_image.read())
+        garment_buffer.seek(0)
+        garment_url = s3_service.upload_file(
+            garment_buffer,
+            filename=f"garment_{uuid.uuid4()}.jpg",
+            folder="tryon_inputs",
+        )
         
         # Use real Virtual Try-On model
         
@@ -48,6 +44,34 @@ async def virtual_tryon(
             "garment_url": garment_url
         }
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Virtual try-on failed: {str(e)}")
+
+
+@router.post("/virtual-tryon-url")
+async def virtual_tryon_url(
+    body_image: UploadFile = File(...),
+    garment_url: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Upload body image to S3; garment URL is already remote.
+        body_buffer = io.BytesIO(await body_image.read())
+        body_buffer.seek(0)
+        body_url = s3_service.upload_file(
+            body_buffer,
+            filename=f"body_{uuid.uuid4()}.jpg",
+            folder="tryon_inputs",
+        )
+
+        tryon_result_url = await replicate_service.virtual_tryon(body_url, garment_url)
+
+        return {
+            "tryon_result_url": tryon_result_url,
+            "body_url": body_url,
+            "garment_url": garment_url
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Virtual try-on failed: {str(e)}")
 

@@ -1,0 +1,10 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640">
+  <rect width="360" height="640" fill="#eff6ff"/>
+  <circle cx="180" cy="120" r="40" fill="#f4cdb6"/>
+  <rect x="145" y="165" width="70" height="120" rx="32" fill="#f472b6"/>
+  <rect x="112" y="188" width="28" height="105" rx="14" fill="#f4cdb6"/>
+  <rect x="220" y="188" width="28" height="105" rx="14" fill="#f4cdb6"/>
+  <rect x="150" y="282" width="24" height="145" rx="12" fill="#be185d"/>
+  <rect x="186" y="282" width="24" height="145" rx="12" fill="#be185d"/>
+  <text x="180" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#831843">Kids - Girl</text>
+</svg>

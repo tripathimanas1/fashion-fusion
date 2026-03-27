@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Any, List, Optional
 from datetime import datetime, timedelta
 import json
 
@@ -110,6 +110,16 @@ class OrderResponse(BaseModel):
     user_name: str
     user_email: str
     user_phone: Optional[str]
+    shipping_address: Optional[str]
+    shipping_city: Optional[str]
+    shipping_country: Optional[str]
+    shipping_postal_code: Optional[str]
+    phone_number: Optional[str]
+    measurements: Optional[dict]
+    special_requirements: Optional[str]
+    color_palette: List[dict]
+    fabric_recommendations: List[str]
+    order_items: List[dict[str, Any]]
 
 class QuoteRequest(BaseModel):
     quote_price: float
@@ -130,6 +140,51 @@ class OrderUpdateRequest(BaseModel):
 class MessageRequest(BaseModel):
     message: str
     message_type: str = "text"
+
+
+def build_order_response(order: Order) -> OrderResponse:
+    primary_design = order.order_items[0].design if order.order_items else None
+    return OrderResponse(
+        id=order.id,
+        order_number=order.order_number,
+        title=order.title,
+        description=order.description,
+        status=order.status.value,
+        design_image_url=order.design_image_url,
+        quote_price=order.quote_price,
+        quote_description=order.quote_description,
+        quote_timeline=order.quote_timeline,
+        quote_expires_at=order.quote_expires_at,
+        requested_deadline=order.requested_deadline,
+        completion_percentage=order.completion_percentage,
+        current_stage=order.current_stage,
+        created_at=order.created_at,
+        user_name=order.user.full_name,
+        user_email=order.user.email,
+        user_phone=order.user.phone,
+        shipping_address=order.shipping_address,
+        shipping_city=order.shipping_city,
+        shipping_country=order.shipping_country,
+        shipping_postal_code=order.shipping_postal_code,
+        phone_number=order.phone_number,
+        measurements=order.measurements or {},
+        special_requirements=order.special_requirements,
+        color_palette=primary_design.color_palette if primary_design and primary_design.color_palette else [],
+        fabric_recommendations=primary_design.fabric_recommendations if primary_design and primary_design.fabric_recommendations else [],
+        order_items=[
+            {
+                "id": item.id,
+                "design_id": item.design_id,
+                "quantity": item.quantity,
+                "size": item.size,
+                "color": item.color,
+                "fabric_type": item.fabric_type,
+                "price": item.price,
+                "customizations": item.customizations or {},
+            }
+            for item in order.order_items
+        ],
+    )
 
 # ── Tailor Profile ────────────────────────────────────────────────────────────────
 
@@ -210,25 +265,7 @@ async def get_tailor_orders(
     
     result = []
     for order in orders:
-        result.append(OrderResponse(
-            id=order.id,
-            order_number=order.order_number,
-            title=order.title,
-            description=order.description,
-            status=order.status.value,
-            design_image_url=order.design_image_url,
-            quote_price=order.quote_price,
-            quote_description=order.quote_description,
-            quote_timeline=order.quote_timeline,
-            quote_expires_at=order.quote_expires_at,
-            requested_deadline=order.requested_deadline,
-            completion_percentage=order.completion_percentage,
-            current_stage=order.current_stage,
-            created_at=order.created_at,
-            user_name=order.user.full_name,
-            user_email=order.user.email,
-            user_phone=order.user.phone
-        ))
+        result.append(build_order_response(order))
     
     return result
 
@@ -247,25 +284,7 @@ async def get_order_detail(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     
-    return OrderResponse(
-        id=order.id,
-        order_number=order.order_number,
-        title=order.title,
-        description=order.description,
-        status=order.status.value,
-        design_image_url=order.design_image_url,
-        quote_price=order.quote_price,
-        quote_description=order.quote_description,
-        quote_timeline=order.quote_timeline,
-        quote_expires_at=order.quote_expires_at,
-        requested_deadline=order.requested_deadline,
-        completion_percentage=order.completion_percentage,
-        current_stage=order.current_stage,
-        created_at=order.created_at,
-        user_name=order.user.full_name,
-        user_email=order.user.email,
-        user_phone=order.user.phone
-    )
+    return build_order_response(order)
 
 @router.post("/orders/{order_id}/quote")
 async def create_quote(
@@ -452,7 +471,8 @@ async def get_tailor_analytics(
     orders = db.query(Order).filter(Order.tailor_id == current_user.id).all()
     
     # Calculate metrics
-    total_revenue = sum(order.total_amount or 0 for order in orders if order.is_completed)
+    completed_orders = [order for order in orders if order.is_completed]
+    total_revenue = sum(order.total_amount or 0 for order in completed_orders)
     monthly_revenue = sum(
         order.total_amount or 0 for order in orders 
         if order.is_completed and order.created_at.month == datetime.utcnow().month
@@ -465,12 +485,12 @@ async def get_tailor_analytics(
     
     return {
         "total_orders": len(orders),
-        "completed_orders": len([o for o in orders if o.is_completed]),
+        "completed_orders": len(completed_orders),
         "active_orders": len([o for o in orders if o.is_active]),
         "pending_quotes": len([o for o in orders if o.is_pending_quote]),
         "total_revenue": total_revenue,
         "monthly_revenue": monthly_revenue,
-        "average_order_value": total_revenue / len([o for o in orders if o.is_completed]) if orders else 0,
+        "average_order_value": total_revenue / len(completed_orders) if completed_orders else 0,
         "completion_rate": tailor.completion_rate,
         "rating": tailor.rating,
         "status_breakdown": status_counts

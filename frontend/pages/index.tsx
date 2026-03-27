@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { Sparkles, Upload, Palette, ShoppingBag, Star, Zap, User, Package } from 'lucide-react'
@@ -9,8 +9,9 @@ import Marketplace      from '../components/Marketplace'
 import UserProfile      from '../components/UserProfile'
 import Auth             from '../components/Auth'
 import Header           from '../components/Header'
-import TrackOrders      from '../components/TrackOrders'
+import TrackOrders      from '../components/Trackorders'
 import LandingPage      from '../components/LandingPage'
+import QuotationForm    from '../components/QuotationForm'
 import toast from 'react-hot-toast'
 import { useAuth }      from '../contexts/AuthContext'
 
@@ -41,7 +42,7 @@ export default function Home() {
   useEffect(() => {
     const garment = router.query.garment as string
     const design = router.query.design as string
-    
+
     if (garment) {
       let designObj = null
       try {
@@ -49,7 +50,7 @@ export default function Home() {
       } catch (e) {
         console.error('Failed to parse design object:', e)
       }
-      
+
       setTryOnGarment({ url: garment, design: designObj })
       setActiveTab('tryon')
     }
@@ -78,8 +79,7 @@ export default function Home() {
 
   const handleBuyNowFromTryOn = (design: any, imageUrl: string) => {
     setBuyNowData({ design, imageUrl })
-    setActiveTab('marketplace')
-    toast('Go to Marketplace → click Order on your design', { icon: '🛍️' })
+    toast.success('Complete the quotation form to place your order')
   }
 
   if (isLoading) {
@@ -171,13 +171,23 @@ export default function Home() {
           <div className="animate-slide-up">
             {activeTab === 'generate' && <DesignGenerator onTryOn={openTryOn} />}
             {activeTab === 'gallery' && <DesignGallery onTryOn={openTryOn} initialSection={gallerySection} />}
-            {activeTab === 'tryon' && <VirtualTryOn preselectedGarmentUrl={tryOnGarment?.url} preselectedDesign={tryOnGarment?.design} onBuyNow={handleBuyNowFromTryOn} onTabChange={setActiveTab} />}
-            {activeTab === 'marketplace' && <Marketplace onTryOn={openTryOn} />}
+            {activeTab === 'tryon' && <VirtualTryOn preselectedGarmentUrl={tryOnGarment?.url} preselectedDesign={tryOnGarment?.design} onBuyNow={handleBuyNowFromTryOn} />}
+            {activeTab === 'marketplace' && <Marketplace />}
             {activeTab === 'orders'      && <TrackOrders />}
             {activeTab === 'profile'     && <UserProfile />}
           </div>
+
+          {buyNowData && (
+            <QuotationForm
+              design={buyNowData.design}
+              imageUrl={buyNowData.imageUrl}
+              onClose={() => setBuyNowData(null)}
+            />
+          )}
         </main>
       </div>
     </>
   )
 }
+
+

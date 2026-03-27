@@ -1,17 +1,16 @@
 """
 Image generation using Google AI Studio (Gemini).
-Calls the SDK directly — no threads, no processes, no executors.
-This is the safest approach on Windows (avoids WinError 233 completely).
+Calls the SDK directly and stores generated assets in S3.
 """
 
 import os
-import uuid
 import base64
 from typing import List
-from config import settings
-
-from services.s3_service import s3_service
+from urllib.request import urlopen
 import io
+
+from config import settings
+from services.s3_service import s3_service
 
 
 def _get_api_key() -> str:
@@ -25,19 +24,35 @@ def _get_api_key() -> str:
 
 
 def _save_bytes(image_bytes: bytes) -> str:
-    """Upload generated image directly to S3"""
+    """Upload generated image directly to S3."""
     file_buffer = io.BytesIO(image_bytes)
     file_buffer.seek(0)
-
     return s3_service.upload_file(
         file_buffer,
         filename="generated.png",
-        folder="designs"
+        folder="designs",
     )
 
 
+def _save_tryon_bytes(image_bytes: bytes) -> str:
+    """Upload virtual try-on output directly to S3."""
+    file_buffer = io.BytesIO(image_bytes)
+    file_buffer.seek(0)
+    return s3_service.upload_file(
+        file_buffer,
+        filename="tryon.png",
+        folder="tryon_outputs",
+    )
+
+
+def _download_image_bytes(url: str) -> bytes:
+    """Download image bytes for Gemini multimodal input."""
+    with urlopen(url) as resp:
+        return resp.read()
+
+
 def _generate_one(prompt: str) -> str:
-    """Call Gemini SDK directly — blocking but safe on all platforms."""
+    """Generate one fashion image from prompt using Gemini."""
     from google import genai
     from google.genai import types
 
@@ -61,13 +76,10 @@ def _generate_one(prompt: str) -> str:
 
 
 class ImageGenerationService:
-    """
-    Generates images by calling Gemini SDK directly in the async function.
-    No threads, no processes, no executors — works on Windows without pipe errors.
-    """
+    """Gemini-backed image generation service."""
 
     def __init__(self):
-        print("✅ ImageGenerationService initialized (Google Gemini — direct, no executor)")
+        print("ImageGenerationService initialized (Google Gemini)")
 
     async def generate_design_from_prompt(self, prompt: str, num_outputs: int = 4) -> List[str]:
         fashion_prompt = (
@@ -91,26 +103,59 @@ class ImageGenerationService:
         return self._generate_batch(sketch_prompt, num_outputs)
 
     def _generate_batch(self, prompt: str, num_outputs: int) -> List[str]:
-        """Generate images one at a time, directly and synchronously."""
-        urls = []
+        """Generate images one at a time."""
+        urls: List[str] = []
         for i in range(num_outputs):
             try:
                 url = _generate_one(prompt)
                 urls.append(url)
-                print(f"✅ Image {i+1}/{num_outputs} saved: {url.split('/')[-1]}")
+                print(f"Image {i + 1}/{num_outputs} saved: {url.split('/')[-1]}")
             except Exception as e:
-                print(f"⚠️  Image {i+1}/{num_outputs} failed: {e}")
+                print(f"Image {i + 1}/{num_outputs} failed: {e}")
         if not urls:
             raise Exception("All image generation attempts failed")
         return urls
 
     async def virtual_tryon(self, body_image_url: str, garment_image_url: str) -> str:
-        print("ℹ️  Virtual try-on not available on free tier.")
-        return body_image_url
+        """Generate virtual try-on image with Gemini and upload result to S3."""
+        from google import genai
+        from google.genai import types
+
+        body_bytes = _download_image_bytes(body_image_url)
+        garment_bytes = _download_image_bytes(garment_image_url)
+
+        prompt = (
+            "Create a realistic virtual try-on image using the two references. "
+            "Use the first image as the person/body reference and preserve identity, face, pose, "
+            "body proportions, and background as much as possible. "
+            "Use the second image as the garment reference and apply its garment style, fit, "
+            "fabric details, and color naturally to the person in the first image. "
+            "Output one photorealistic final image only."
+        )
+
+        client = genai.Client(api_key=_get_api_key())
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=[
+                prompt,
+                types.Part.from_bytes(data=body_bytes, mime_type="image/jpeg"),
+                types.Part.from_bytes(data=garment_bytes, mime_type="image/jpeg"),
+            ],
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE"],
+            ),
+        )
+
+        for part in response.candidates[0].content.parts:
+            if part.inline_data:
+                data = part.inline_data.data
+                image_bytes = base64.b64decode(data) if isinstance(data, str) else data
+                return _save_tryon_bytes(image_bytes)
+
+        raise Exception("Gemini returned no try-on image")
 
     async def _call_tryon_api(self, body_image_url: str, garment_image_url: str, api_key: str) -> str:
         return body_image_url
 
 
-# Singleton
 replicate_service = ImageGenerationService()

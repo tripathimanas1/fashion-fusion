@@ -37,6 +37,31 @@ interface Order {
   user_name: string
   user_email: string
   user_phone?: string
+  shipping_address?: string
+  shipping_city?: string
+  shipping_country?: string
+  shipping_postal_code?: string
+  phone_number?: string
+  measurements?: Record<string, string | number | null>
+  special_requirements?: string
+  color_palette?: Array<{ hex?: string; percentage?: number }>
+  fabric_recommendations?: string[]
+  order_items?: Array<{
+    id: number
+    design_id: number
+    quantity: number
+    size?: string
+    color?: string
+    fabric_type?: string
+    price: number
+    customizations?: {
+      selected_image_url?: string
+      preferred_material?: string
+      suggested_material?: string
+      additional_notes?: string
+      color_palette?: Array<{ hex?: string; percentage?: number }>
+    }
+  }>
 }
 
 interface TailorProfile {
@@ -115,6 +140,7 @@ export default function TailorDashboard() {
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all')
   const [submittingQuoteId, setSubmittingQuoteId] = useState<number | null>(null)
   const [selectedRequest, setSelectedRequest] = useState<PendingQuotation | null>(null)
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
   useEffect(() => {
     if (!user?.is_tailor) {
@@ -211,6 +237,16 @@ export default function TailorDashboard() {
     }
   }
 
+  const handleViewOrderDetails = async (order: Order) => {
+    try {
+      const orderDetails = await tailorApi.getOrder(order.id)
+      setSelectedOrder(orderDetails)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load order details')
+      setSelectedOrder(order)
+    }
+  }
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending_quote: 'bg-yellow-100 text-yellow-800',
@@ -257,6 +293,29 @@ export default function TailorDashboard() {
         ['Inseam', selectedRequest.inseam ? `${selectedRequest.inseam} cm` : ''],
       ].filter(([, value]) => Boolean(value))
     : []
+
+  const selectedOrderItem = selectedOrder?.order_items?.[0]
+  const selectedOrderMeasurementRows = selectedOrder
+    ? [
+        ['Standard size', selectedOrderItem?.size || selectedOrder.measurements?.standard_size],
+        ['Chest', selectedOrder.measurements?.chest ? `${selectedOrder.measurements.chest} cm` : ''],
+        ['Waist', selectedOrder.measurements?.waist ? `${selectedOrder.measurements.waist} cm` : ''],
+        ['Hips', selectedOrder.measurements?.hips ? `${selectedOrder.measurements.hips} cm` : ''],
+        ['Height', selectedOrder.measurements?.height ? `${selectedOrder.measurements.height} cm` : ''],
+        ['Shoulder width', selectedOrder.measurements?.shoulder_width ? `${selectedOrder.measurements.shoulder_width} cm` : ''],
+        ['Sleeve length', selectedOrder.measurements?.sleeve_length ? `${selectedOrder.measurements.sleeve_length} cm` : ''],
+        ['Inseam', selectedOrder.measurements?.inseam ? `${selectedOrder.measurements.inseam} cm` : ''],
+      ].filter(([, value]) => Boolean(value))
+    : []
+
+  const selectedOrderColors = selectedOrderItem?.color
+    ? selectedOrderItem.color.split(',').map((value) => value.trim()).filter(Boolean)
+    : (selectedOrder?.color_palette || []).map((color) => color.hex).filter(Boolean) as string[]
+
+  const selectedOrderMaterial =
+    selectedOrderItem?.fabric_type ||
+    selectedOrderItem?.customizations?.preferred_material ||
+    selectedOrderItem?.customizations?.suggested_material
 
   if (loading) {
     return (
@@ -593,7 +652,10 @@ export default function TailorDashboard() {
                           </div>
                         </div>
 
-                        <button className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors">
+                        <button
+                          onClick={() => handleViewOrderDetails(order)}
+                          className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                        >
                           View Details
                         </button>
                       </div>
@@ -800,6 +862,159 @@ export default function TailorDashboard() {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{selectedOrder.title}</h2>
+                <p className="text-sm text-gray-500">
+                  {selectedOrder.order_number} • {formatStatus(selectedOrder.status)}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {selectedOrder.design_image_url && (
+                <div className="bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
+                  <img
+                    src={selectedOrder.design_image_url}
+                    alt={selectedOrder.title}
+                    className="w-full max-h-[420px] object-contain"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-gray-200 p-5">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Order Summary</h3>
+                  <div className="space-y-3 text-sm text-gray-700">
+                    <p><span className="font-semibold text-gray-900">Customer:</span> {selectedOrder.user_name}</p>
+                    <p><span className="font-semibold text-gray-900">Email:</span> {selectedOrder.user_email}</p>
+                    <p><span className="font-semibold text-gray-900">Phone:</span> {selectedOrder.user_phone || 'Not provided'}</p>
+                    <p><span className="font-semibold text-gray-900">Created:</span> {new Date(selectedOrder.created_at).toLocaleString()}</p>
+                    <p><span className="font-semibold text-gray-900">Stage:</span> {selectedOrder.current_stage || 'Not set'}</p>
+                    <p><span className="font-semibold text-gray-900">Progress:</span> {selectedOrder.completion_percentage}%</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 p-5">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Quote & Delivery</h3>
+                  <div className="space-y-3 text-sm text-gray-700">
+                    <p><span className="font-semibold text-gray-900">Quote Price:</span> {typeof selectedOrder.quote_price === 'number' ? `$${selectedOrder.quote_price.toFixed(2)}` : 'Not set'}</p>
+                    <p><span className="font-semibold text-gray-900">Timeline:</span> {selectedOrder.quote_timeline || 'Not set'}</p>
+                    <p><span className="font-semibold text-gray-900">Deadline:</span> {selectedOrder.requested_deadline ? new Date(selectedOrder.requested_deadline).toLocaleDateString() : 'Not set'}</p>
+                    <p><span className="font-semibold text-gray-900">Shipping City:</span> {selectedOrder.shipping_city || 'Not provided'}</p>
+                    <p><span className="font-semibold text-gray-900">Shipping Country:</span> {selectedOrder.shipping_country || 'Not provided'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 p-5">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Description</h3>
+                <p className="text-sm text-gray-700 leading-6">
+                  {selectedOrder.description || 'No order description available.'}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 p-5 space-y-5">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Design Details</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+                  <div>
+                    <p><span className="font-semibold text-gray-900">Size:</span> {selectedOrderItem?.size || selectedOrder.measurements?.standard_size || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <p><span className="font-semibold text-gray-900">Material:</span> {selectedOrderMaterial || 'Not provided'}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Colors</h4>
+                  {selectedOrderColors.length > 0 ? (
+                    <div className="flex flex-wrap gap-3">
+                      {selectedOrderColors.map((color, index) => (
+                        <div key={`${color}-${index}`} className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
+                          <div className="w-5 h-5 rounded-full border border-gray-200" style={{ backgroundColor: color || '#e5e7eb' }} />
+                          <span>{color}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No colors were provided.</p>
+                  )}
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Measurements</h4>
+                  {selectedOrderMeasurementRows.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedOrderMeasurementRows.map(([label, value]) => (
+                        <div key={label} className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+                          <p className="text-sm text-gray-800 mt-1">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No measurement details were provided.</p>
+                  )}
+                </div>
+
+                {(selectedOrder.special_requirements ||
+                  selectedOrderItem?.customizations?.additional_notes ||
+                  (selectedOrder.fabric_recommendations && selectedOrder.fabric_recommendations.length > 0)) && (
+                  <div className="space-y-3">
+                    {selectedOrder.special_requirements && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 mb-1">Customer Notes</h4>
+                        <p className="text-sm text-gray-700 leading-6">{selectedOrder.special_requirements}</p>
+                      </div>
+                    )}
+
+                    {!selectedOrder.special_requirements && selectedOrderItem?.customizations?.additional_notes && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 mb-1">Customer Notes</h4>
+                        <p className="text-sm text-gray-700 leading-6">{selectedOrderItem.customizations.additional_notes}</p>
+                      </div>
+                    )}
+
+                    {selectedOrder.fabric_recommendations && selectedOrder.fabric_recommendations.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 mb-1">Fabric Suggestions</h4>
+                        <p className="text-sm text-gray-700 leading-6">{selectedOrder.fabric_recommendations.join(', ')}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {selectedOrder.quote_description && (
+                <div className="rounded-2xl border border-gray-200 p-5">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Quote Notes</h3>
+                  <p className="text-sm text-gray-700 leading-6">{selectedOrder.quote_description}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>

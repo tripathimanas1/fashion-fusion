@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+﻿import { useState, useCallback, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, User, Shirt, Camera, RotateCcw, Heart, ShoppingBag, Sparkles, Check, Image as ImageIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -6,24 +6,35 @@ import { designsApi, Design, SavedDesignEntry } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const SAMPLE_BODY_BASE_URL =
+  process.env.NEXT_PUBLIC_SAMPLE_BODY_BASE_URL ||
+  'https://fashion-fusion-assets-2026.s3.eu-north-1.amazonaws.com/sample_bodies'
+
+const BODY_SAMPLES = [
+  { id: 'men-lean', label: 'Men - Lean', url: `${SAMPLE_BODY_BASE_URL}/body-men-lean.svg` },
+  { id: 'men-broad', label: 'Men - Broad', url: `${SAMPLE_BODY_BASE_URL}/body-men-broad.svg` },
+  { id: 'women-petite', label: 'Women - Petite', url: `${SAMPLE_BODY_BASE_URL}/body-women-petite.svg` },
+  { id: 'women-curvy', label: 'Women - Curvy', url: `${SAMPLE_BODY_BASE_URL}/body-women-curvy.svg` },
+  { id: 'kid-boy', label: 'Kids - Boy', url: `${SAMPLE_BODY_BASE_URL}/body-kid-boy.svg` },
+  { id: 'kid-girl', label: 'Kids - Girl', url: `${SAMPLE_BODY_BASE_URL}/body-kid-girl.svg` },
+]
 
 interface VirtualTryOnProps {
   preselectedGarmentUrl?: string   // passed when navigating from gallery/marketplace
   preselectedDesign?: any          // full design object for Buy Now flow
   onBuyNow?: (design: any, imageUrl: string) => void
-  onTabChange?: (tab: string) => void
 }
 
 export default function VirtualTryOn({
   preselectedGarmentUrl,
   preselectedDesign,
-  onBuyNow,
-  onTabChange,
+  onBuyNow
 }: VirtualTryOnProps) {
   const { user } = useAuth()
 
   // Images
   const [bodyImage, setBodyImage]       = useState<File | null>(null)
+  const [selectedBodySample, setSelectedBodySample] = useState<string | null>(null)
   const [garmentImage, setGarmentImage] = useState<File | null>(null)
   const [garmentUrl, setGarmentUrl]     = useState<string | null>(preselectedGarmentUrl || null)
   const [activeGarmentUrl, setActiveGarmentUrl] = useState<string | null>(preselectedGarmentUrl || null)
@@ -78,7 +89,10 @@ export default function VirtualTryOn({
 
   // Dropzones
   const onBodyDrop = useCallback((files: File[]) => {
-    if (files[0]) setBodyImage(files[0])
+    if (files[0]) {
+      setBodyImage(files[0])
+      setSelectedBodySample(null)
+    }
   }, [])
 
   const onGarmentDrop = useCallback((files: File[]) => {
@@ -93,7 +107,20 @@ export default function VirtualTryOn({
   const { getRootProps: getGarmentRootProps, getInputProps: getGarmentInputProps } = useDropzone({ onDrop: onGarmentDrop, accept: { 'image/*': [] }, maxFiles: 1 })
 
   const processTryOn = async () => {
-    if (!bodyImage) { toast.error('Please upload your body photo'); return }
+    let resolvedBodyImage = bodyImage
+
+    if (!resolvedBodyImage && selectedBodySample) {
+      try {
+        const sampleResp = await fetch(selectedBodySample)
+        const sampleBlob = await sampleResp.blob()
+        resolvedBodyImage = new File([sampleBlob], 'sample-body.png', { type: sampleBlob.type || 'image/png' })
+      } catch {
+        toast.error('Failed to load sample body image')
+        return
+      }
+    }
+
+    if (!resolvedBodyImage) { toast.error('Please upload your body photo or choose a sample'); return }
     if (!garmentImage && !garmentUrl) { toast.error('Please select or upload a garment image'); return }
 
     setIsProcessing(true)
@@ -102,7 +129,7 @@ export default function VirtualTryOn({
 
     try {
       const formData = new FormData()
-      formData.append('body_image', bodyImage)
+      formData.append('body_image', resolvedBodyImage)
 
       if (garmentImage) {
         // Upload file directly
@@ -138,6 +165,7 @@ export default function VirtualTryOn({
 
   const reset = () => {
     setBodyImage(null)
+    setSelectedBodySample(null)
     setGarmentImage(null)
     setGarmentUrl(null)
     setActiveGarmentUrl(null)
@@ -147,13 +175,36 @@ export default function VirtualTryOn({
   }
 
   const handleBuyNow = () => {
-    if (onBuyNow && selectedDesignForBuy && garmentUrl) {
-      onBuyNow(selectedDesignForBuy, garmentUrl)
-    } else if (onTabChange) {
-      onTabChange('marketplace')
-      toast('Select a design in the Marketplace to place an order', { icon: '🛍️' })
+    const resolvedDesign =
+      selectedDesignForBuy ||
+      preselectedDesign ||
+      savedDesigns.find(s =>
+        Array.isArray(s.design?.image_urls) &&
+        garmentUrl &&
+        s.design.image_urls.includes(garmentUrl)
+      )?.design
+
+    if (!resultImage) {
+      toast.error('Generate a try-on result first')
+      return
     }
+    if (!resolvedDesign) {
+      toast.error('Please choose a saved/generated design (uploaded garment images cannot be ordered directly yet)')
+      return
+    }
+    if (onBuyNow) onBuyNow(resolvedDesign, resultImage)
   }
+
+  const orderableDesign =
+    selectedDesignForBuy ||
+    preselectedDesign ||
+    savedDesigns.find(s =>
+      Array.isArray(s.design?.image_urls) &&
+      garmentUrl &&
+      s.design.image_urls.includes(garmentUrl)
+    )?.design
+  const canOrderNow = Boolean(orderableDesign) && Boolean(resultImage)
+
 
   const garmentPreviewUrl = garmentImage ? URL.createObjectURL(garmentImage) : garmentUrl
 
@@ -161,7 +212,7 @@ export default function VirtualTryOn({
     <div className="max-w-6xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-        {/* ── Left: Inputs ── */}
+        {/* â”€â”€ Left: Inputs â”€â”€ */}
         <div className="space-y-6">
 
           {/* Body Image */}
@@ -170,11 +221,11 @@ export default function VirtualTryOn({
               <div className="w-7 h-7 bg-gradient-sunset rounded-lg flex items-center justify-center">
                 <User className="text-white" size={14} />
               </div>
-              Step 1 — Your Body Photo
+              Step 1 â€” Your Body Photo
             </h3>
             <div {...getBodyRootProps()}
               className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
-                bodyImage ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-fashion-rose hover:bg-rose-50/30'
+                (bodyImage || selectedBodySample) ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-fashion-rose hover:bg-rose-50/30'
               }`}>
               <input {...getBodyInputProps()} />
               {bodyImage ? (
@@ -184,13 +235,38 @@ export default function VirtualTryOn({
                   <p className="text-green-600 font-medium text-sm">{bodyImage.name}</p>
                   <p className="text-xs text-gray-400 mt-1">Click to replace</p>
                 </div>
+              ) : selectedBodySample ? (
+                <div>
+                  <img src={selectedBodySample} alt="Sample body"
+                    className="w-32 h-32 object-cover rounded-xl mx-auto mb-2 shadow-fashion" />
+                  <p className="text-green-600 font-medium text-sm">Sample body selected</p>
+                  <p className="text-xs text-gray-400 mt-1">Click to upload your own instead</p>
+                </div>
               ) : (
                 <div>
                   <Upload className="mx-auto text-gray-300 mb-2" size={36} />
                   <p className="text-gray-600 text-sm font-medium">Upload full-body photo</p>
-                  <p className="text-gray-400 text-xs mt-1">Standing pose · clear background works best</p>
+                  <p className="text-gray-400 text-xs mt-1">Standing pose Â· clear background works best</p>
                 </div>
               )}
+            </div>
+            <div className="mt-3">
+              <p className="text-xs text-gray-500 mb-2">Or pick a sample body type:</p>
+              <div className="grid grid-cols-3 gap-2">
+                {BODY_SAMPLES.map(sample => (
+                  <button
+                    key={sample.id}
+                    type="button"
+                    onClick={() => { setSelectedBodySample(sample.url); setBodyImage(null) }}
+                    className={`rounded-lg border p-1.5 text-left transition-all ${
+                      selectedBodySample === sample.url ? 'border-fashion-rose ring-1 ring-fashion-rose' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <img src={sample.url} alt={sample.label} className="w-full h-16 object-cover rounded-md bg-gray-50" />
+                    <p className="text-[10px] text-gray-600 mt-1 line-clamp-1">{sample.label}</p>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -200,7 +276,7 @@ export default function VirtualTryOn({
               <div className="w-7 h-7 bg-gradient-ocean rounded-lg flex items-center justify-center">
                 <Shirt className="text-white" size={14} />
               </div>
-              Step 2 — Choose Garment
+              Step 2 â€” Choose Garment
             </h3>
 
             {/* Source tabs */}
@@ -252,7 +328,7 @@ export default function VirtualTryOn({
                       <div>
                         <Upload className="mx-auto text-gray-300 mb-2" size={36} />
                         <p className="text-gray-600 text-sm font-medium">Upload garment image</p>
-                        <p className="text-gray-400 text-xs mt-1">Front-facing · clear background</p>
+                        <p className="text-gray-400 text-xs mt-1">Front-facing Â· clear background</p>
                       </div>
                     )}
                   </div>
@@ -295,10 +371,10 @@ export default function VirtualTryOn({
           {/* Action buttons */}
           <div className="flex gap-3">
             <button onClick={processTryOn}
-              disabled={isProcessing || !bodyImage || (!garmentImage && !garmentUrl)}
+              disabled={isProcessing || (!bodyImage && !selectedBodySample) || (!garmentImage && !garmentUrl)}
               className="flex-1 bg-gradient-sunset text-white py-3.5 rounded-xl font-bold shadow-fashion hover:shadow-fashion-lg transform hover:scale-[1.02] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2">
               {isProcessing ? (
-                <><div className="loading-spinner !w-5 !h-5 !border-2" /> Processing…</>
+                <><div className="loading-spinner !w-5 !h-5 !border-2" /> Processingâ€¦</>
               ) : (
                 <><Camera size={18} /> Try On</>
               )}
@@ -313,15 +389,15 @@ export default function VirtualTryOn({
           <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-800">
             <p className="font-semibold mb-2">Tips for best results:</p>
             <ul className="space-y-1 text-xs text-blue-700">
-              <li>• Full-body photo with arms slightly away from body</li>
-              <li>• Simple, neutral background for body photo</li>
-              <li>• Clear, front-facing garment image</li>
-              <li>• Good lighting on both images</li>
+              <li>â€¢ Full-body photo with arms slightly away from body</li>
+              <li>â€¢ Simple, neutral background for body photo</li>
+              <li>â€¢ Clear, front-facing garment image</li>
+              <li>â€¢ Good lighting on both images</li>
             </ul>
           </div>
         </div>
 
-        {/* ── Right: Result ── */}
+        {/* â”€â”€ Right: Result â”€â”€ */}
         <div>
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-fashion p-6 border border-gray-100">
             <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -350,7 +426,8 @@ export default function VirtualTryOn({
                     </button>
                     <button
                       onClick={handleBuyNow}
-                      className="flex-1 bg-gradient-sunset text-white py-2.5 rounded-xl font-bold text-sm shadow-fashion hover:shadow-fashion-lg transform hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5">
+                      disabled={!canOrderNow}
+                      className="flex-1 bg-gradient-sunset text-white py-2.5 rounded-xl font-bold text-sm shadow-fashion hover:shadow-fashion-lg transform hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
                       <ShoppingBag size={14} /> Order Now
                     </button>
                   </div>
@@ -359,9 +436,9 @@ export default function VirtualTryOn({
                     className="w-full py-2 rounded-xl border-2 border-dashed border-gray-200 text-gray-500 hover:border-fashion-sky hover:text-fashion-sky text-xs font-semibold transition-all flex items-center justify-center gap-1.5">
                     <Shirt size={12} /> Try Another Garment
                   </button>
-                  {!selectedDesignForBuy && (
+                  {!orderableDesign && (
                     <p className="text-xs text-gray-400 text-center">
-                      Select a design from My Designs or Saved tab to enable Order Now
+                      Order Now is available only for saved/generated designs (not uploaded garment files)
                     </p>
                   )}
                 </div>
@@ -369,7 +446,7 @@ export default function VirtualTryOn({
                 {/* Download */}
                 <a href={resultImage} download="tryon-result.png"
                   className="block w-full text-center text-sm text-gray-400 hover:text-fashion-rose transition-colors py-2">
-                  ↓ Download result image
+                  â†“ Download result image
                 </a>
               </div>
             ) : (
@@ -390,3 +467,9 @@ export default function VirtualTryOn({
     </div>
   )
 }
+
+
+
+
+
+

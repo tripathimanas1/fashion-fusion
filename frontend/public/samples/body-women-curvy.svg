@@ -1,0 +1,10 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640">
+  <rect width="360" height="640" fill="#fdf2f8"/>
+  <circle cx="180" cy="95" r="44" fill="#d8b39d"/>
+  <rect x="120" y="145" width="120" height="175" rx="58" fill="#db2777"/>
+  <rect x="82" y="172" width="34" height="145" rx="17" fill="#d8b39d"/>
+  <rect x="244" y="172" width="34" height="145" rx="17" fill="#d8b39d"/>
+  <rect x="132" y="312" width="42" height="190" rx="18" fill="#9d174d"/>
+  <rect x="186" y="312" width="42" height="190" rx="18" fill="#9d174d"/>
+  <text x="180" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#831843">Women - Curvy</text>
+</svg>

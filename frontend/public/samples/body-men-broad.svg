@@ -1,0 +1,10 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 640">
+  <rect width="360" height="640" fill="#f3f4f6"/>
+  <circle cx="180" cy="95" r="44" fill="#c7a999"/>
+  <rect x="125" y="145" width="110" height="175" rx="52" fill="#374151"/>
+  <rect x="82" y="175" width="38" height="160" rx="18" fill="#c7a999"/>
+  <rect x="240" y="175" width="38" height="160" rx="18" fill="#c7a999"/>
+  <rect x="132" y="318" width="42" height="195" rx="18" fill="#111827"/>
+  <rect x="186" y="318" width="42" height="195" rx="18" fill="#111827"/>
+  <text x="180" y="575" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#1f2937">Men - Broad</text>
+</svg>

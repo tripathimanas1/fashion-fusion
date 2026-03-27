@@ -180,21 +180,51 @@ def accept_quote(request_id: int, quote_id: int, body: AcceptQuoteRequest, db: S
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")
 
+    design = db.query(Design).filter(Design.id == req.design_id).first()
+    if not design:
+        raise HTTPException(status_code=404, detail="Design not found")
+
     import uuid
     order_number = f"FF-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+    estimated_completion = (
+        datetime.utcnow() + timedelta(days=quote.estimated_days)
+        if quote.estimated_days is not None else None
+    )
+    measurements = {
+        "standard_size": req.standard_size,
+        "chest": req.chest,
+        "waist": req.waist,
+        "hips": req.hips,
+        "height": req.height,
+        "shoulder_width": req.shoulder_width,
+        "sleeve_length": req.sleeve_length,
+        "inseam": req.inseam,
+    }
 
     order = Order(
         user_id=req.user_id,
         tailor_id=quote.tailor_user_id,
         order_number=order_number,
-        status=OrderStatusEnum.CONFIRMED,
+        status=OrderStatusEnum.ORDER_ACTIVE,
+        title=design.title or f"Custom design #{design.id}",
+        description=design.description or design.prompt,
+        design_image_url=req.selected_image_url,
+        measurements=measurements,
+        quote_price=quote.price,
+        quote_description=quote.notes,
+        quote_timeline=f"{quote.estimated_days} days" if quote.estimated_days is not None else None,
+        quote_created_at=quote.created_at,
+        quote_accepted_at=datetime.utcnow(),
         total_amount=quote.price,
         shipping_address=req.shipping_address or "",
         shipping_city=req.shipping_city or "",
         shipping_country=req.shipping_country or "India",
         shipping_postal_code=req.shipping_postal_code or "",
         phone_number=req.phone_number or "",
-        special_instructions=req.additional_notes,
+        special_requirements=req.additional_notes,
+        requested_deadline=estimated_completion,
+        estimated_completion=estimated_completion,
+        current_stage="quote_accepted",
     )
     db.add(order)
     db.flush()
@@ -204,7 +234,22 @@ def accept_quote(request_id: int, quote_id: int, body: AcceptQuoteRequest, db: S
         design_id=req.design_id,
         quantity=1,
         size=req.standard_size or "M",
+        color=", ".join(
+            [
+                color.get("hex")
+                for color in (design.color_palette or [])
+                if isinstance(color, dict) and color.get("hex")
+            ][:5]
+        ) or None,
+        fabric_type=req.preferred_material or req.suggested_material,
         price=quote.price,
+        customizations={
+            "selected_image_url": req.selected_image_url,
+            "preferred_material": req.preferred_material,
+            "suggested_material": req.suggested_material,
+            "additional_notes": req.additional_notes,
+            "color_palette": design.color_palette if design and design.color_palette else [],
+        },
     )
     db.add(item)
 

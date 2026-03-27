@@ -7,6 +7,7 @@ import uuid
 
 from database import get_db
 from models.order import Order, OrderItem, OrderStatusEnum
+from models.design import Design
 from models.user import User
 
 router = APIRouter()
@@ -55,20 +56,26 @@ async def place_order(body: PlaceOrderRequest, db: Session = Depends(get_db)):
         if not tailor:
             raise HTTPException(status_code=404, detail="Tailor not found")
 
+        design = db.query(Design).filter(Design.id == body.design_id).first()
+        if not design:
+            raise HTTPException(status_code=404, detail="Design not found")
+
         order_number = f"FF-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
 
         order = Order(
             user_id=body.user_id,
             tailor_id=body.tailor_id,
             order_number=order_number,
-            status=OrderStatusEnum.PENDING,
+            status=OrderStatusEnum.ORDER_ACTIVE,
+            title=design.title or f"Custom design #{design.id}",
+            description=design.description or design.prompt,
             total_amount=body.price * body.quantity,
             shipping_address=body.shipping_address,
             shipping_city=body.shipping_city,
             shipping_country=body.shipping_country,
             shipping_postal_code=body.shipping_postal_code,
             phone_number=body.phone_number,
-            special_instructions=body.special_instructions,
+            special_requirements=body.special_instructions,
         )
         db.add(order)
         db.flush()  # get order.id before committing
@@ -140,7 +147,7 @@ async def get_order(order_id: int, db: Session = Depends(get_db)):
         "shipping_country": order.shipping_country,
         "shipping_postal_code": order.shipping_postal_code,
         "phone_number": order.phone_number,
-        "special_instructions": order.special_instructions,
+        "special_instructions": order.special_requirements,
         "created_at": order.created_at.isoformat() if order.created_at else "",
         "items": [
             {
